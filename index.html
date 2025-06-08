@@ -935,7 +935,6 @@
         
         // Webhook configuration - points to our travel webhook endpoint
         const webhookUrl = 'https://n8n.srv854905.hstgr.cloud/webhook/travel-chat';
-    
         
         // Questions for travel planning form in English
         const questionsEN = [
@@ -1831,13 +1830,17 @@
         // Submit all collected data to webhook
         function submitFormData() {
             // Note: Input is already disabled when final question is reached
+            console.log('🚀 SUBMITTING FORM DATA TO WEBHOOK');
+            console.log('📍 Webhook URL:', webhookUrl);
+            console.log('📊 Form Data:', formData);
+            console.log('💬 Message History:', messageHistory);
             
             fetch(webhookUrl, {
                 method: 'POST',
+                mode: 'cors',
                 headers: {
                     'Content-Type': 'application/json',
-                    'Accept': 'application/json',
-                    'Origin': window.location.origin
+                    'Accept': 'application/json'
                 },
                 body: JSON.stringify({
                     conversationId: conversationId,
@@ -1848,18 +1851,27 @@
                 })
             })
             .then(response => {
+                console.log('📡 Webhook Response Status:', response.status);
+                console.log('📡 Webhook Response OK:', response.ok);
                 if (response.ok) {
                     return response.json().catch(() => ({ response: null }));
+                } else {
+                    console.error('❌ Webhook failed with status:', response.status);
+                    return response.text().then(text => {
+                        console.error('❌ Error response:', text);
+                        return { response: null, error: text };
+                    });
                 }
-                return { response: null };
             })
             .then(data => {
                 // Data submitted successfully - no need to show additional messages
                 // since the final message is already displayed
-                console.log('Travel itinerary request submitted successfully');
+                console.log('✅ Travel itinerary request submitted successfully');
+                console.log('📋 Response data:', data);
             })
             .catch(error => {
-                console.error('Error submitting travel data:', error);
+                console.error('❌ Error submitting travel data:', error);
+                console.error('❌ Error details:', error.message);
                 // Even if webhook fails, the user already sees the final message
             });
         }
