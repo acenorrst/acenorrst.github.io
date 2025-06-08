@@ -187,6 +187,31 @@
             background-color: rgba(255, 255, 255, 0.9); /* Slightly transparent */
         }
 
+        .header-controls {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .test-webhook-btn {
+            background: linear-gradient(135deg, var(--secondary-color), var(--accent-color));
+            color: white;
+            border: none;
+            padding: 8px 16px;
+            border-radius: 20px;
+            font-size: 0.8rem;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            box-shadow: 0 2px 4px rgba(217, 119, 6, 0.2);
+        }
+
+        .test-webhook-btn:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 4px 8px rgba(217, 119, 6, 0.3);
+            background: linear-gradient(135deg, var(--accent-color), var(--secondary-color));
+        }
+
         .chat-title {
             font-size: 1.5rem;
             font-weight: 600;
@@ -427,6 +452,57 @@
         .option-button.disabled:hover {
             background-color: #f5f5f5 !important;
             color: #999 !important;
+        }
+
+        /* Enhanced styling for day allocation option buttons */
+        .options-container[data-question-id*="destinationDays"] .option-button {
+            background: linear-gradient(135deg, var(--white), rgba(79, 70, 229, 0.05));
+            border: 2px solid var(--primary-light);
+            padding: 12px 20px;
+            font-weight: 500;
+            font-size: 0.9rem;
+            min-width: 80px;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .options-container[data-question-id*="destinationDays"] .option-button:before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: -100%;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(90deg, transparent, rgba(255,255,255,0.4), transparent);
+            transition: left 0.5s;
+        }
+
+        .options-container[data-question-id*="destinationDays"] .option-button:hover:before {
+            left: 100%;
+        }
+
+        .options-container[data-question-id*="destinationDays"] .option-button:hover {
+            background: linear-gradient(135deg, var(--primary-color), var(--primary-dark));
+            color: var(--white);
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(79, 70, 229, 0.3);
+            border-color: var(--primary-dark);
+        }
+
+        /* Day context card styling */
+        .day-context-card {
+            animation: slideInFromTop 0.3s ease-out;
+        }
+
+        @keyframes slideInFromTop {
+            from {
+                opacity: 0;
+                transform: translateY(-10px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
         }
 
         /* Add rustic styling to confirmation summary */
@@ -1050,6 +1126,13 @@
                     'singleDestination': 'destinationSpecificity'
                 }
             },
+            { 
+                id: 'destinationSpecificity',
+                text: "Would you like to explore specific areas or neighborhoods within your destination?",
+                field: 'Destination Specificity',
+                options: ['Yes, specific areas', 'No, general exploration'],
+                skipIf: 'isMultiDestination'
+            },
 
             { 
                 id: 'startDate',
@@ -1063,7 +1146,18 @@
                 text: "When would you like to return? Please select your return date.",
                 field: 'End Date',
                 isCalendarPicker: true,
-                validation: 'required'
+                validation: 'required',
+                nextQuestionBranch: {
+                    'multiDestination': 'destinationDaysAllocation',
+                    'singleDestination': 'travelers'
+                }
+            },
+            { 
+                id: 'destinationDaysAllocation',
+                text: "Now let's plan how many days you'll spend in each destination. This helps me create a perfectly balanced itinerary.",
+                field: 'Day Allocation Setup',
+                isDayAllocationSetup: true,
+                skipIf: 'singleDestination'
             },
             { 
                 id: 'travelers',
@@ -1480,16 +1574,39 @@
                 
                 // Check if there's branch logic based on the response
                 let nextQuestionId;
-                if (currentQ.nextQuestionBranch && formData[currentQ.field] in currentQ.nextQuestionBranch) {
-                    // Get the next question ID based on the user's response
-                    nextQuestionId = currentQ.nextQuestionBranch[formData[currentQ.field]];
+                if (currentQ.nextQuestionBranch) {
+                    // Special handling for endDate question - branch based on destination type
+                    if (currentQ.id === 'endDate') {
+                        if (window.isMultiDestination && currentQ.nextQuestionBranch['multiDestination']) {
+                            nextQuestionId = currentQ.nextQuestionBranch['multiDestination'];
+                        } else if (!window.isMultiDestination && currentQ.nextQuestionBranch['singleDestination']) {
+                            nextQuestionId = currentQ.nextQuestionBranch['singleDestination'];
+                        }
+                    }
+                    // Special handling for destinationMultiple question - branch based on destination count
+                    else if (currentQ.id === 'destinationMultiple') {
+                        if (window.isMultiDestination && currentQ.nextQuestionBranch['multiDestination']) {
+                            nextQuestionId = currentQ.nextQuestionBranch['multiDestination'];
+                        } else if (!window.isMultiDestination && currentQ.nextQuestionBranch['singleDestination']) {
+                            nextQuestionId = currentQ.nextQuestionBranch['singleDestination'];
+                        }
+                    }
+                    // Standard branching based on response value
+                    else if (formData[currentQ.field] in currentQ.nextQuestionBranch) {
+                        nextQuestionId = currentQ.nextQuestionBranch[formData[currentQ.field]];
+                    }
                     
-                    // Find the index of the next question
-                    const nextIndex = questions.findIndex(q => q.id === nextQuestionId);
-                    if (nextIndex !== -1) {
-                        currentQuestion = nextIndex;
+                    // Find the index of the next question if we have a target
+                    if (nextQuestionId) {
+                        const nextIndex = questions.findIndex(q => q.id === nextQuestionId);
+                        if (nextIndex !== -1) {
+                            currentQuestion = nextIndex;
+                        } else {
+                            // Fallback to sequential if branch target not found
+                            currentQuestion++;
+                        }
                     } else {
-                        // Fallback to sequential if branch target not found
+                        // Default sequential behavior
                         currentQuestion++;
                     }
                 } else {
@@ -1576,17 +1693,16 @@
                 // Don't generate day questions yet - wait for end date
             }
             
-            // Handle end date and generate day allocation questions AFTER both dates are set
-            if (question.id === 'endDate') {
-                // If multi-destination and we have both dates, now generate day allocation questions
+            // Handle day allocation setup question - this is where we generate the dynamic day questions
+            if (question.id === 'destinationDaysAllocation') {
+                // Generate dynamic questions for each destination
                 if (window.isMultiDestination && formData['Start Date'] && formData['End Date'] && !window.addedDynamicQuestions) {
-                    // Generate dynamic questions for each destination
                     const dayQuestions = generateSmartDayAllocationQuestions(window.destinationList);
                     
                     // Insert these questions after the current question
                     const insertIndex = currentQuestion + 1;
                     
-                    // Remove any existing dynamic destination questions first
+                    // Add the dynamic day questions
                     questions.splice(insertIndex, 0, ...dayQuestions);
                     
                     // Set flag to track that we've added dynamic questions
@@ -2355,37 +2471,57 @@
                 optionsContainer.className = 'options-container';
                 optionsContainer.dataset.questionId = currentQ.id;
                 
-                // Handle smart day allocation questions
+                // Handle smart day allocation questions with enhanced bubble interface
                 let finalOptions = options;
                 if (currentQ && currentQ.isSmartDayQuestion) {
                     const remainingDestinations = window.destinationList ? window.destinationList.length - currentQ.destinationIndex - 1 : 0;
                     const isLastDestination = remainingDestinations === 0;
                     finalOptions = getSmartDayOptions(window.remainingDays || 1, isLastDestination);
                     
-                    // Add context text showing remaining days
+                    // Add enhanced context card showing remaining days
                     const contextDiv = document.createElement('div');
-                    contextDiv.className = 'day-context';
+                    contextDiv.className = 'day-context-card';
                     contextDiv.style.cssText = `
                         background: linear-gradient(135deg, rgba(79, 70, 229, 0.1), rgba(217, 119, 6, 0.1));
-                        padding: 12px;
-                        border-radius: 8px;
-                        margin-bottom: 15px;
+                        padding: 16px;
+                        border-radius: 12px;
+                        margin-bottom: 20px;
                         border-left: 4px solid var(--primary-color);
                         font-size: 0.9rem;
                         color: var(--text-dark);
+                        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
                     `;
                     
                     if (isLastDestination) {
                         contextDiv.innerHTML = `
-                            <strong>📍 Final Destination</strong><br>
-                            You have <strong>${window.remainingDays} days</strong> remaining for ${currentQ.destinationName}.
+                            <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 8px;">
+                                <span style="font-size: 1.2rem;">🏁</span>
+                                <strong style="color: var(--primary-color);">Final Destination</strong>
+                            </div>
+                            <div style="font-size: 0.85rem; color: var(--text-light);">
+                                You have <strong style="color: var(--accent-color);">${window.remainingDays} day${window.remainingDays > 1 ? 's' : ''}</strong> remaining for <strong>${currentQ.destinationName}</strong>.
+                            </div>
                         `;
                     } else {
                         contextDiv.innerHTML = `
-                            <strong>📊 Trip Planning</strong><br>
-                            Total trip: <strong>${window.totalTripDays} days</strong> | 
-                            Remaining: <strong>${window.remainingDays} days</strong> | 
-                            Destinations left: <strong>${remainingDestinations + 1}</strong>
+                            <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 8px;">
+                                <span style="font-size: 1.2rem;">📊</span>
+                                <strong style="color: var(--primary-color);">Trip Planning Progress</strong>
+                            </div>
+                            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)); gap: 8px; font-size: 0.8rem;">
+                                <div style="text-align: center; padding: 6px; background: rgba(255,255,255,0.7); border-radius: 6px;">
+                                    <div style="font-weight: 600; color: var(--primary-color);">${window.totalTripDays}</div>
+                                    <div style="color: var(--text-light);">Total Days</div>
+                                </div>
+                                <div style="text-align: center; padding: 6px; background: rgba(255,255,255,0.7); border-radius: 6px;">
+                                    <div style="font-weight: 600; color: var(--accent-color);">${window.remainingDays}</div>
+                                    <div style="color: var(--text-light);">Remaining</div>
+                                </div>
+                                <div style="text-align: center; padding: 6px; background: rgba(255,255,255,0.7); border-radius: 6px;">
+                                    <div style="font-weight: 600; color: var(--secondary-color);">${remainingDestinations + 1}</div>
+                                    <div style="color: var(--text-light);">Destinations Left</div>
+                                </div>
+                            </div>
                         `;
                     }
                     
