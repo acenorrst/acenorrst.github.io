@@ -984,10 +984,17 @@
             },
             {
                 id: 'destinationDaysAllocation',
-                text: "Perfect! Now let me ask about how many days you'd like to spend in each destination to ensure your trip timing works perfectly.",
+                text: "Perfect! I can see you have {totalDays} days total for your trip. Now let's allocate how many days you'd like to spend in each destination to ensure your timing works perfectly.",
                 field: 'Days Per Destination Setup',
-                isMultiDestinationDaysSetup: true,
-                dynamicQuestions: true,
+                isSmartDayAllocation: true,
+                conditional: 'isMultiDestination'
+            },
+            {
+                id: 'dayAllocationConfirmation',
+                text: "Let me confirm your day allocation:",
+                field: 'Day Allocation Confirmation',
+                isDayAllocationConfirmation: true,
+                options: ['Yes, this looks perfect', 'No, I need to adjust the days'],
                 conditional: 'isMultiDestination'
             },
             { 
@@ -1501,7 +1508,7 @@
                 // If multi-destination, we need to generate day allocation questions
                 if (window.isMultiDestination) {
                     // Generate dynamic questions for each destination
-                    const dayQuestions = generateDestinationDayQuestions(destinations);
+                    const dayQuestions = generateSmartDayAllocationQuestions(destinations);
                     
                     // Insert these questions after the current question
                     const insertIndex = currentQuestion + 1;
@@ -1588,6 +1595,98 @@
                 }
             }
             
+            // Handle smart day allocation responses
+            if (question.isSmartDayQuestion) {
+                const selectedDays = dayOptionToNumber(response);
+                
+                // Update remaining days
+                window.remainingDays = (window.remainingDays || 0) - selectedDays;
+                
+                // Store the allocation
+                window.dayAllocations[question.destinationName] = selectedDays;
+                
+                // Check if this was the last destination
+                const remainingDestinations = window.destinationList ? window.destinationList.length - question.destinationIndex - 1 : 0;
+                
+                if (remainingDestinations === 0) {
+                    // All destinations allocated, add confirmation question
+                    const confirmationQuestion = {
+                        id: 'dayAllocationConfirmation',
+                        text: "Perfect! Let me confirm your day allocation:",
+                        field: 'Day Allocation Confirmation',
+                        isDayAllocationConfirmation: true,
+                        options: ['Yes, this looks perfect', 'No, I need to adjust the days']
+                    };
+                    
+                    // Insert confirmation question after current question
+                    questions.splice(currentQuestion + 1, 0, confirmationQuestion);
+                }
+            }
+            
+            // Handle day allocation confirmation
+            if (question.isDayAllocationConfirmation) {
+                if (response === 'No, I need to adjust the days') {
+                    // Reset day allocations and go back to first day question
+                    window.remainingDays = window.totalTripDays;
+                    window.dayAllocations = {};
+                    
+                    // Find first day allocation question
+                    for (let i = 0; i < questions.length; i++) {
+                        if (questions[i].isSmartDayQuestion) {
+                            currentQuestion = i;
+                            return true;
+                        }
+                    }
+                }
+                // If "Yes", continue normally
+            }
+            
+            // Handle smart day allocation responses
+            if (question.isSmartDayQuestion) {
+                const selectedDays = dayOptionToNumber(response);
+                
+                // Update remaining days
+                window.remainingDays = (window.remainingDays || 0) - selectedDays;
+                
+                // Store the allocation
+                window.dayAllocations[question.destinationName] = selectedDays;
+                
+                // Check if this was the last destination
+                const remainingDestinations = window.destinationList ? window.destinationList.length - question.destinationIndex - 1 : 0;
+                
+                if (remainingDestinations === 0) {
+                    // All destinations allocated, add confirmation question
+                    const confirmationQuestion = {
+                        id: 'dayAllocationConfirmation',
+                        text: "Perfect! Let me confirm your day allocation:",
+                        field: 'Day Allocation Confirmation',
+                        isDayAllocationConfirmation: true,
+                        options: ['Yes, this looks perfect', 'No, I need to adjust the days']
+                    };
+                    
+                    // Insert confirmation question after current question
+                    questions.splice(currentQuestion + 1, 0, confirmationQuestion);
+                }
+            }
+            
+            // Handle day allocation confirmation
+            if (question.isDayAllocationConfirmation) {
+                if (response === 'No, I need to adjust the days') {
+                    // Reset day allocations and go back to first day question
+                    window.remainingDays = window.totalTripDays;
+                    window.dayAllocations = {};
+                    
+                    // Find first day allocation question
+                    for (let i = 0; i < questions.length; i++) {
+                        if (questions[i].isSmartDayQuestion) {
+                            currentQuestion = i;
+                            return true;
+                        }
+                    }
+                }
+                // If "Yes", continue normally
+            }
+            
             // Handle field correction completion
             if (isCorrectingField()) {
                 // Check if the current field being corrected matches the current question
@@ -1657,12 +1756,11 @@
             });
         }
         
-        // Generate dynamic destination day questions with validation
-        function generateDestinationDayQuestions(destinations) {
-            const dayOptions = ['1 day', '2 days', '3 days', '4 days', '5 days', '6 days', '7 days', '2+ weeks', '1+ month'];
+        // SMART CONTEXT-AWARE DAY ALLOCATION SYSTEM
+        function generateSmartDayAllocationQuestions(destinations) {
             const dynamicQuestions = [];
             
-            // Calculate total trip days for validation
+            // Calculate total trip days
             const startDate = formData["Start Date"];
             const endDate = formData["End Date"];
             let totalTripDays = 0;
@@ -1673,30 +1771,107 @@
                 totalTripDays = Math.ceil((end - start) / (1000 * 60 * 60 * 24)) + 1;
             }
             
+            // Store total days globally for tracking
+            window.totalTripDays = totalTripDays;
+            window.remainingDays = totalTripDays;
+            window.dayAllocations = {};
+            
             destinations.forEach((destination, index) => {
-                // Capitalize destination name
                 const capitalizedDestination = destination.charAt(0).toUpperCase() + destination.slice(1).toLowerCase();
-                
-                let questionText = `How many days do you wish to spend in ${capitalizedDestination}?`;
-                
-                // Add validation hint if we have trip dates
-                if (totalTripDays > 0) {
-                    questionText += ` (Your total trip is ${totalTripDays} days)`;
-                }
                 
                 dynamicQuestions.push({
                     id: `destinationDays_${index}`,
-                    text: questionText,
+                    text: `How many days would you like to spend in ${capitalizedDestination}? (You have ${totalTripDays} days total for your trip)`,
                     field: `Days in ${capitalizedDestination}`,
-                    options: dayOptions,
-                    validation: 'required',
-                    isDynamicDestinationQuestion: true,
-                    totalTripDays: totalTripDays
+                    isSmartDayQuestion: true,
+                    destinationIndex: index,
+                    destinationName: capitalizedDestination,
+                    totalTripDays: totalTripDays,
+                    validation: 'smartDayValidation'
                 });
             });
             
             return dynamicQuestions;
         }
+        
+        // Generate smart day options based on remaining days
+        function getSmartDayOptions(remainingDays, isLastDestination = false) {
+            const options = [];
+            
+            if (isLastDestination) {
+                // For the last destination, they must use all remaining days
+                if (remainingDays === 1) {
+                    options.push('1 day');
+                } else if (remainingDays > 1) {
+                    options.push(`${remainingDays} days`);
+                }
+            } else {
+                // For other destinations, they can choose from 1 to (remainingDays - 1)
+                // Leave at least 1 day for remaining destinations
+                const maxDays = Math.max(1, remainingDays - 1);
+                
+                for (let i = 1; i <= Math.min(maxDays, 14); i++) {
+                    if (i === 1) {
+                        options.push('1 day');
+                    } else {
+                        options.push(`${i} days`);
+                    }
+                }
+                
+                // Add longer options if there are enough days
+                if (remainingDays >= 15) {
+                    options.push('2 weeks');
+                }
+                if (remainingDays >= 22) {
+                    options.push('3 weeks');
+                }
+                if (remainingDays >= 30) {
+                    options.push('1 month');
+                }
+            }
+            
+            return options;
+        }
+        
+        // Convert day option text to number
+        function dayOptionToNumber(dayText) {
+            if (dayText.includes('1 day')) return 1;
+            if (dayText.includes('2 weeks')) return 14;
+            if (dayText.includes('3 weeks')) return 21;
+            if (dayText.includes('1 month')) return 30;
+            
+            const match = dayText.match(/(\d+)\s+days?/);
+            return match ? parseInt(match[1]) : 1;
+        }
+        
+        // Smart day validation
+        const smartDayValidator = {
+            smartDayValidation: (value, questionData) => {
+                const selectedDays = dayOptionToNumber(value);
+                const remainingDays = window.remainingDays || 0;
+                
+                if (selectedDays > remainingDays) {
+                    return {
+                        isValid: false,
+                        errorMessage: `You only have ${remainingDays} days remaining. Please select a valid number of days.`,
+                        errorMessageES: `Solo tienes ${remainingDays} días restantes. Por favor selecciona un número válido de días.`
+                    };
+                }
+                
+                if (selectedDays < 1) {
+                    return {
+                        isValid: false,
+                        errorMessage: "You must spend at least 1 day in each destination.",
+                        errorMessageES: "Debes pasar al menos 1 día en cada destino."
+                    };
+                }
+                
+                return { isValid: true };
+            }
+        };
+        
+        // Add smart day validator to existing validators
+        Object.assign(validators, smartDayValidator);
         
         // Validate destination days don't exceed trip length
         function validateDestinationDays() {
@@ -2107,7 +2282,44 @@
                 optionsContainer.className = 'options-container';
                 optionsContainer.dataset.questionId = currentQ.id;
                 
-                options.forEach(option => {
+                // Handle smart day allocation questions
+                let finalOptions = options;
+                if (currentQ && currentQ.isSmartDayQuestion) {
+                    const remainingDestinations = window.destinationList ? window.destinationList.length - currentQ.destinationIndex - 1 : 0;
+                    const isLastDestination = remainingDestinations === 0;
+                    finalOptions = getSmartDayOptions(window.remainingDays || 1, isLastDestination);
+                    
+                    // Add context text showing remaining days
+                    const contextDiv = document.createElement('div');
+                    contextDiv.className = 'day-context';
+                    contextDiv.style.cssText = `
+                        background: linear-gradient(135deg, rgba(79, 70, 229, 0.1), rgba(217, 119, 6, 0.1));
+                        padding: 12px;
+                        border-radius: 8px;
+                        margin-bottom: 15px;
+                        border-left: 4px solid var(--primary-color);
+                        font-size: 0.9rem;
+                        color: var(--text-dark);
+                    `;
+                    
+                    if (isLastDestination) {
+                        contextDiv.innerHTML = `
+                            <strong>📍 Final Destination</strong><br>
+                            You have <strong>${window.remainingDays} days</strong> remaining for ${currentQ.destinationName}.
+                        `;
+                    } else {
+                        contextDiv.innerHTML = `
+                            <strong>📊 Trip Planning</strong><br>
+                            Total trip: <strong>${window.totalTripDays} days</strong> | 
+                            Remaining: <strong>${window.remainingDays} days</strong> | 
+                            Destinations left: <strong>${remainingDestinations + 1}</strong>
+                        `;
+                    }
+                    
+                    messageDiv.appendChild(contextDiv);
+                }
+                
+                finalOptions.forEach(option => {
                     const optionButton = document.createElement('button');
                     optionButton.className = 'option-button';
                     optionButton.textContent = option;
@@ -2133,6 +2345,234 @@
                 
                 // Don't append options container yet for confirmation questions
                 if (!currentQ || !currentQ.isConfirmation) {
+                    messageDiv.appendChild(optionsContainer);
+                }
+            }
+            
+            // Handle day allocation confirmation
+            if (currentQ && currentQ.isDayAllocationConfirmation) {
+                const dayAllocationSummary = document.createElement('div');
+                dayAllocationSummary.className = 'day-allocation-summary';
+                dayAllocationSummary.style.cssText = `
+                    background: linear-gradient(135deg, rgba(79, 70, 229, 0.1), rgba(217, 119, 6, 0.1));
+                    padding: 20px;
+                    border-radius: 12px;
+                    margin-bottom: 20px;
+                    border-left: 4px solid var(--primary-color);
+                `;
+                
+                const summaryTitle = document.createElement('div');
+                summaryTitle.style.cssText = `
+                    font-size: 1.1rem;
+                    font-weight: 600;
+                    color: var(--primary-color);
+                    margin-bottom: 15px;
+                    display: flex;
+                    align-items: center;
+                    gap: 8px;
+                `;
+                summaryTitle.innerHTML = `📊 Your Day Allocation Summary`;
+                dayAllocationSummary.appendChild(summaryTitle);
+                
+                // Display each destination allocation
+                if (window.dayAllocations) {
+                    Object.entries(window.dayAllocations).forEach(([destination, days]) => {
+                        const allocationItem = document.createElement('div');
+                        allocationItem.style.cssText = `
+                            display: flex;
+                            justify-content: space-between;
+                            align-items: center;
+                            padding: 10px 0;
+                            border-bottom: 1px solid rgba(79, 70, 229, 0.2);
+                        `;
+                        
+                        const destinationName = document.createElement('span');
+                        destinationName.style.cssText = `
+                            font-weight: 500;
+                            color: var(--text-dark);
+                        `;
+                        destinationName.textContent = destination;
+                        
+                        const dayCount = document.createElement('span');
+                        dayCount.style.cssText = `
+                            background: var(--primary-color);
+                            color: white;
+                            padding: 4px 12px;
+                            border-radius: 20px;
+                            font-size: 0.9rem;
+                            font-weight: 500;
+                        `;
+                        dayCount.textContent = `${days} day${days > 1 ? 's' : ''}`;
+                        
+                        allocationItem.appendChild(destinationName);
+                        allocationItem.appendChild(dayCount);
+                        dayAllocationSummary.appendChild(allocationItem);
+                    });
+                }
+                
+                // Total summary
+                const totalSummary = document.createElement('div');
+                totalSummary.style.cssText = `
+                    margin-top: 15px;
+                    padding-top: 15px;
+                    border-top: 2px solid var(--primary-color);
+                    display: flex;
+                    justify-content: space-between;
+                    align-items: center;
+                    font-weight: 600;
+                `;
+                
+                const totalLabel = document.createElement('span');
+                totalLabel.textContent = 'Total Trip Duration:';
+                totalLabel.style.color = 'var(--text-dark)';
+                
+                const totalDays = document.createElement('span');
+                totalDays.style.cssText = `
+                    background: var(--accent-color);
+                    color: white;
+                    padding: 6px 16px;
+                    border-radius: 25px;
+                    font-size: 1rem;
+                `;
+                totalDays.textContent = `${window.totalTripDays} days`;
+                
+                totalSummary.appendChild(totalLabel);
+                totalSummary.appendChild(totalDays);
+                dayAllocationSummary.appendChild(totalSummary);
+                
+                messageDiv.appendChild(dayAllocationSummary);
+                
+                // Add options for confirmation
+                if (options && options.length > 0) {
+                    const optionsContainer = document.createElement('div');
+                    optionsContainer.className = 'options-container';
+                    optionsContainer.dataset.questionId = currentQ.id;
+                    
+                    options.forEach(option => {
+                        const optionButton = document.createElement('button');
+                        optionButton.className = 'option-button';
+                        optionButton.textContent = option;
+                        optionButton.addEventListener('click', () => {
+                            chatInput.value = option;
+                            sendMessage();
+                        });
+                        optionsContainer.appendChild(optionButton);
+                    });
+                    
+                    messageDiv.appendChild(optionsContainer);
+                }
+            }
+            
+            // Handle day allocation confirmation
+            if (currentQ && currentQ.isDayAllocationConfirmation) {
+                const dayAllocationSummary = document.createElement('div');
+                dayAllocationSummary.className = 'day-allocation-summary';
+                dayAllocationSummary.style.cssText = `
+                    background: linear-gradient(135deg, rgba(79, 70, 229, 0.1), rgba(217, 119, 6, 0.1));
+                    padding: 20px;
+                    border-radius: 12px;
+                    margin-bottom: 20px;
+                    border-left: 4px solid var(--primary-color);
+                `;
+                
+                const summaryTitle = document.createElement('div');
+                summaryTitle.style.cssText = `
+                    font-size: 1.1rem;
+                    font-weight: 600;
+                    color: var(--primary-color);
+                    margin-bottom: 15px;
+                    display: flex;
+                    align-items: center;
+                    gap: 8px;
+                `;
+                summaryTitle.innerHTML = `📊 Your Day Allocation Summary`;
+                dayAllocationSummary.appendChild(summaryTitle);
+                
+                // Display each destination allocation
+                if (window.dayAllocations) {
+                    Object.entries(window.dayAllocations).forEach(([destination, days]) => {
+                        const allocationItem = document.createElement('div');
+                        allocationItem.style.cssText = `
+                            display: flex;
+                            justify-content: space-between;
+                            align-items: center;
+                            padding: 10px 0;
+                            border-bottom: 1px solid rgba(79, 70, 229, 0.2);
+                        `;
+                        
+                        const destinationName = document.createElement('span');
+                        destinationName.style.cssText = `
+                            font-weight: 500;
+                            color: var(--text-dark);
+                        `;
+                        destinationName.textContent = destination;
+                        
+                        const dayCount = document.createElement('span');
+                        dayCount.style.cssText = `
+                            background: var(--primary-color);
+                            color: white;
+                            padding: 4px 12px;
+                            border-radius: 20px;
+                            font-size: 0.9rem;
+                            font-weight: 500;
+                        `;
+                        dayCount.textContent = `${days} day${days > 1 ? 's' : ''}`;
+                        
+                        allocationItem.appendChild(destinationName);
+                        allocationItem.appendChild(dayCount);
+                        dayAllocationSummary.appendChild(allocationItem);
+                    });
+                }
+                
+                // Total summary
+                const totalSummary = document.createElement('div');
+                totalSummary.style.cssText = `
+                    margin-top: 15px;
+                    padding-top: 15px;
+                    border-top: 2px solid var(--primary-color);
+                    display: flex;
+                    justify-content: space-between;
+                    align-items: center;
+                    font-weight: 600;
+                `;
+                
+                const totalLabel = document.createElement('span');
+                totalLabel.textContent = 'Total Trip Duration:';
+                totalLabel.style.color = 'var(--text-dark)';
+                
+                const totalDays = document.createElement('span');
+                totalDays.style.cssText = `
+                    background: var(--accent-color);
+                    color: white;
+                    padding: 6px 16px;
+                    border-radius: 25px;
+                    font-size: 1rem;
+                `;
+                totalDays.textContent = `${window.totalTripDays} days`;
+                
+                totalSummary.appendChild(totalLabel);
+                totalSummary.appendChild(totalDays);
+                dayAllocationSummary.appendChild(totalSummary);
+                
+                messageDiv.appendChild(dayAllocationSummary);
+                
+                // Add options for confirmation
+                if (options && options.length > 0) {
+                    const optionsContainer = document.createElement('div');
+                    optionsContainer.className = 'options-container';
+                    optionsContainer.dataset.questionId = currentQ.id;
+                    
+                    options.forEach(option => {
+                        const optionButton = document.createElement('button');
+                        optionButton.className = 'option-button';
+                        optionButton.textContent = option;
+                        optionButton.addEventListener('click', () => {
+                            chatInput.value = option;
+                            sendMessage();
+                        });
+                        optionsContainer.appendChild(optionButton);
+                    });
+                    
                     messageDiv.appendChild(optionsContainer);
                 }
             }
