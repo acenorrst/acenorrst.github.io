@@ -1157,7 +1157,8 @@
                 text: "Now let's plan how many days you'll spend in each destination. This helps me create a perfectly balanced itinerary.",
                 field: 'Day Allocation Setup',
                 isDayAllocationSetup: true,
-                skipIf: 'singleDestination'
+                skipIf: 'singleDestination',
+                isPreludeMessage: true // FIXED: No response required, just a setup message
             },
             { 
                 id: 'travelers',
@@ -1640,6 +1641,83 @@
                         submitFormData();
                     }
                     
+                    // FIXED: Handle prelude messages in sendMessage to prevent duplicate processing
+                    if (nextQ.isPreludeMessage) {
+                        // Use context-aware text if available, otherwise use default text
+                        let nextText = getContextAwareText(nextQ);
+                        
+                        // Replace any placeholder text with actual user input
+                        for (const field in formData) {
+                            nextText = nextText.replace(`{${field}}`, formData[field]);
+                        }
+                        hideTypingIndicator();
+                        
+                        // Display prelude message without options
+                        addAgentMessage(nextText, null, false);
+                        
+                        // CRITICAL FIX: Generate day allocation questions for destinationDaysAllocation prelude
+                        if (nextQ.id === 'destinationDaysAllocation') {
+                            console.log('🔍 Processing destinationDaysAllocation prelude');
+                            console.log('🔍 isMultiDestination:', window.isMultiDestination);
+                            console.log('🔍 Start Date:', formData['Start Date']);
+                            console.log('🔍 End Date:', formData['End Date']);
+                            console.log('🔍 addedDynamicQuestions:', window.addedDynamicQuestions);
+                            console.log('🔍 destinationList:', window.destinationList);
+                            
+                            // Generate dynamic questions for each destination
+                            if (window.isMultiDestination && formData['Start Date'] && formData['End Date'] && !window.addedDynamicQuestions) {
+                                const dayQuestions = generateSmartDayAllocationQuestions(window.destinationList);
+                                
+                                // Insert these questions after the current question
+                                const insertIndex = currentQuestion + 1;
+                                
+                                // Add the dynamic day questions
+                                questions.splice(insertIndex, 0, ...dayQuestions);
+                                
+                                // Set flag to track that we've added dynamic questions
+                                window.addedDynamicQuestions = true;
+                                
+                                console.log(`🎯 Generated ${dayQuestions.length} day allocation questions for destinations:`, window.destinationList);
+                                console.log('🎯 Day questions:', dayQuestions);
+                                console.log('🎯 Questions array length after insertion:', questions.length);
+                                console.log('🎯 Day questions:', dayQuestions);
+                                console.log('🎯 Questions array length after insertion:', questions.length);
+                            } else {
+                                console.log('❌ Day allocation questions NOT generated - conditions not met');
+                                console.log('❌ Condition check:');
+                                console.log('   - isMultiDestination:', window.isMultiDestination);
+                                console.log('   - Start Date exists:', !!formData['Start Date']);
+                                console.log('   - End Date exists:', !!formData['End Date']);
+                                console.log('   - addedDynamicQuestions:', window.addedDynamicQuestions);
+                            }
+                        }
+                        
+                        // Auto-advance to next question after delay
+                        setTimeout(() => {
+                            currentQuestion++;
+                            
+                            // Skip questions based on booking analysis
+                            while (currentQuestion < questions.length && shouldSkipQuestion(questions[currentQuestion])) {
+                                currentQuestion++;
+                            }
+                            
+                            if (currentQuestion < questions.length) {
+                                const followUpQ = questions[currentQuestion];
+                                
+                                // Use context-aware text if available, otherwise use default text
+                                let followUpText = getContextAwareText(followUpQ);
+                                
+                                // Replace any placeholder text with actual user input
+                                for (const field in formData) {
+                                    followUpText = followUpText.replace(`{${field}}`, formData[field]);
+                                }
+                                
+                                addAgentMessage(followUpText, followUpQ.options, followUpQ.multiselect);
+                            }
+                        }, 1500);
+                        return; // Exit early for prelude messages
+                    }
+                    
                     // Use context-aware text if available, otherwise use default text
                     let nextText = getContextAwareText(nextQ);
                     
@@ -1693,22 +1771,7 @@
                 // Don't generate day questions yet - wait for end date
             }
             
-            // Handle day allocation setup question - this is where we generate the dynamic day questions
-            if (question.id === 'destinationDaysAllocation') {
-                // Generate dynamic questions for each destination
-                if (window.isMultiDestination && formData['Start Date'] && formData['End Date'] && !window.addedDynamicQuestions) {
-                    const dayQuestions = generateSmartDayAllocationQuestions(window.destinationList);
-                    
-                    // Insert these questions after the current question
-                    const insertIndex = currentQuestion + 1;
-                    
-                    // Add the dynamic day questions
-                    questions.splice(insertIndex, 0, ...dayQuestions);
-                    
-                    // Set flag to track that we've added dynamic questions
-                    window.addedDynamicQuestions = true;
-                }
-            }
+            // NOTE: Day allocation setup is now handled as prelude message in sendMessage function
             
             // Handle "Other" booking details follow-up logic
             if (question.id === 'bookedInAdvance') {
@@ -1784,7 +1847,7 @@
                 }
             }
             
-            // Handle smart day allocation responses
+            // Handle smart day allocation responses - FIXED remaining days update
             if (question.isSmartDayQuestion) {
                 const selectedDays = dayOptionToNumber(response);
                 
@@ -1793,6 +1856,15 @@
                 
                 // Store the allocation
                 window.dayAllocations[question.destinationName] = selectedDays;
+                
+                console.log(`🎯 Day allocation: ${question.destinationName} = ${selectedDays} days, remaining = ${window.remainingDays}`);
+                
+                // Update the text of the next day allocation question if it exists
+                const nextQuestionIndex = currentQuestion + 1;
+                if (nextQuestionIndex < questions.length && questions[nextQuestionIndex].isSmartDayQuestion) {
+                    const nextDestination = questions[nextQuestionIndex].destinationName;
+                    questions[nextQuestionIndex].text = `How many days would you like to spend in ${nextDestination}? (You have ${window.remainingDays} days remaining)`;
+                }
                 
                 // Check if this was the last destination
                 const remainingDestinations = window.destinationList ? window.destinationList.length - question.destinationIndex - 1 : 0;
@@ -1812,7 +1884,7 @@
                 }
             }
             
-            // Handle day allocation confirmation
+            // Handle day allocation confirmation - FIXED: Continue to next questions after confirmation
             if (question.isDayAllocationConfirmation) {
                 if (response === 'No, I need to adjust the days') {
                     // Reset day allocations and go back to first day question
@@ -1827,53 +1899,13 @@
                         }
                     }
                 }
-                // If "Yes", continue normally
-            }
-            
-            // Handle smart day allocation responses
-            if (question.isSmartDayQuestion) {
-                const selectedDays = dayOptionToNumber(response);
-                
-                // Update remaining days
-                window.remainingDays = (window.remainingDays || 0) - selectedDays;
-                
-                // Store the allocation
-                window.dayAllocations[question.destinationName] = selectedDays;
-                
-                // Check if this was the last destination
-                const remainingDestinations = window.destinationList ? window.destinationList.length - question.destinationIndex - 1 : 0;
-                
-                if (remainingDestinations === 0) {
-                    // All destinations allocated, add confirmation question
-                    const confirmationQuestion = {
-                        id: 'dayAllocationConfirmation',
-                        text: "Perfect! Let me confirm your day allocation:",
-                        field: 'Day Allocation Confirmation',
-                        isDayAllocationConfirmation: true,
-                        options: ['Yes, this looks perfect', 'No, I need to adjust the days']
-                    };
-                    
-                    // Insert confirmation question after current question
-                    questions.splice(currentQuestion + 1, 0, confirmationQuestion);
+                // FIXED: If "Yes", remove the confirmation question and continue normally
+                if (response === 'Yes, this looks perfect') {
+                    // Remove this confirmation question from the array so it doesn't interfere
+                    questions.splice(currentQuestion, 1);
+                    currentQuestion--; // Adjust index since we removed a question
+                    // Continue to next question normally
                 }
-            }
-            
-            // Handle day allocation confirmation
-            if (question.isDayAllocationConfirmation) {
-                if (response === 'No, I need to adjust the days') {
-                    // Reset day allocations and go back to first day question
-                    window.remainingDays = window.totalTripDays;
-                    window.dayAllocations = {};
-                    
-                    // Find first day allocation question
-                    for (let i = 0; i < questions.length; i++) {
-                        if (questions[i].isSmartDayQuestion) {
-                            currentQuestion = i;
-                            return true;
-                        }
-                    }
-                }
-                // If "Yes", continue normally
             }
             
             // Handle field correction completion
@@ -1945,7 +1977,52 @@
             });
         }
         
-        // SMART CONTEXT-AWARE DAY ALLOCATION SYSTEM
+        // Convert day option text to number - FIXED for new bubble format
+        function dayOptionToNumber(dayText) {
+            if (dayText === '1 day') return 1;
+            if (dayText.includes('2+ weeks')) return 14;
+            if (dayText.includes('1+ month')) return 30;
+            
+            // Handle individual day options (2 days, 3 days, etc.)
+            const match = dayText.match(/(\d+)\s+days?/);
+            return match ? parseInt(match[1]) : 1;
+        }
+
+        // Generate smart day options based on remaining days - FIXED FOR BUBBLES
+        function getSmartDayOptions(remainingDays, isLastDestination = false) {
+            const options = [];
+            
+            if (isLastDestination) {
+                // For the last destination, they must use all remaining days
+                if (remainingDays === 1) {
+                    options.push('1 day');
+                } else if (remainingDays > 1) {
+                    options.push(`${remainingDays} days`);
+                }
+            } else {
+                // FIXED: Create proper bubble options (1-7 days, 2+ weeks, 1+ month)
+                const maxSelectableDays = remainingDays - 1; // Leave at least 1 day for remaining destinations
+                
+                // Add individual day options (1-7 days)
+                for (let i = 1; i <= Math.min(7, maxSelectableDays); i++) {
+                    options.push(`${i} day${i > 1 ? 's' : ''}`);
+                }
+                
+                // Add 2+ weeks option only if there are enough days (14+ remaining)
+                if (remainingDays >= 15) { // Need at least 15 days (14 for 2 weeks + 1 for other destinations)
+                    options.push('2+ weeks');
+                }
+                
+                // Add 1+ month option only if there are enough days (30+ remaining)
+                if (remainingDays >= 31) { // Need at least 31 days (30 for 1 month + 1 for other destinations)
+                    options.push('1+ month');
+                }
+            }
+            
+            return options;
+        }
+
+        // SMART CONTEXT-AWARE DAY ALLOCATION SYSTEM - FIXED
         function generateSmartDayAllocationQuestions(destinations) {
             const dynamicQuestions = [];
             
@@ -1968,99 +2045,26 @@
             destinations.forEach((destination, index) => {
                 const capitalizedDestination = destination.charAt(0).toUpperCase() + destination.slice(1).toLowerCase();
                 
+                // FIXED: Include remaining days in initial text
+                const questionText = index === 0 
+                    ? `How many days would you like to spend in ${capitalizedDestination}? (You have ${totalTripDays} days total for your trip)`
+                    : `How many days would you like to spend in ${capitalizedDestination}?`;
+                
                 dynamicQuestions.push({
                     id: `destinationDays_${index}`,
-                    text: `How many days would you like to spend in ${capitalizedDestination}? (You have ${totalTripDays} days total for your trip)`,
+                    text: questionText,
                     field: `Days in ${capitalizedDestination}`,
                     isSmartDayQuestion: true,
                     destinationIndex: index,
                     destinationName: capitalizedDestination,
                     totalTripDays: totalTripDays,
+                    options: [], // Will be populated dynamically based on remaining days
                     validation: 'smartDayValidation'
                 });
             });
             
             return dynamicQuestions;
         }
-        
-        // Generate smart day options based on remaining days
-        function getSmartDayOptions(remainingDays, isLastDestination = false) {
-            const options = [];
-            
-            if (isLastDestination) {
-                // For the last destination, they must use all remaining days
-                if (remainingDays === 1) {
-                    options.push('1 day');
-                } else if (remainingDays > 1) {
-                    options.push(`${remainingDays} days`);
-                }
-            } else {
-                // For other destinations, they can choose from 1 to (remainingDays - 1)
-                // Leave at least 1 day for remaining destinations
-                const maxDays = Math.max(1, remainingDays - 1);
-                
-                for (let i = 1; i <= Math.min(maxDays, 14); i++) {
-                    if (i === 1) {
-                        options.push('1 day');
-                    } else {
-                        options.push(`${i} days`);
-                    }
-                }
-                
-                // Add longer options if there are enough days
-                if (remainingDays >= 15) {
-                    options.push('2 weeks');
-                }
-                if (remainingDays >= 22) {
-                    options.push('3 weeks');
-                }
-                if (remainingDays >= 30) {
-                    options.push('1 month');
-                }
-            }
-            
-            return options;
-        }
-        
-        // Convert day option text to number
-        function dayOptionToNumber(dayText) {
-            if (dayText.includes('1 day')) return 1;
-            if (dayText.includes('2 weeks')) return 14;
-            if (dayText.includes('3 weeks')) return 21;
-            if (dayText.includes('1 month')) return 30;
-            
-            const match = dayText.match(/(\d+)\s+days?/);
-            return match ? parseInt(match[1]) : 1;
-        }
-        
-        // Smart day validation
-        const smartDayValidator = {
-            smartDayValidation: (value, questionData) => {
-                const selectedDays = dayOptionToNumber(value);
-                const remainingDays = window.remainingDays || 0;
-                
-                if (selectedDays > remainingDays) {
-                    return {
-                        isValid: false,
-                        errorMessage: `You only have ${remainingDays} days remaining. Please select a valid number of days.`,
-                        errorMessageES: `Solo tienes ${remainingDays} días restantes. Por favor selecciona un número válido de días.`
-                    };
-                }
-                
-                if (selectedDays < 1) {
-                    return {
-                        isValid: false,
-                        errorMessage: "You must spend at least 1 day in each destination.",
-                        errorMessageES: "Debes pasar al menos 1 día en cada destino."
-                    };
-                }
-                
-                return { isValid: true };
-            }
-        };
-        
-        // Add smart day validator to existing validators
-        Object.assign(validators, smartDayValidator);
         
         // Validate destination days don't exceed trip length
         function validateDestinationDays() {
@@ -2256,6 +2260,8 @@
             
             // Get current question
             const currentQ = questions[currentQuestion];
+            
+
             
             // Handle calendar picker for travel dates
             if (currentQ && currentQ.isCalendarPicker) {
@@ -2465,8 +2471,8 @@
                 messageDiv.appendChild(calendarPicker);
             }
             
-            // Add options if provided (for multiple choice questions)
-            if (options && options.length && !currentQ.isCalendarPicker) {
+            // Add options if provided (for multiple choice questions) - FIXED for smart day questions
+            if ((options && options.length && !currentQ.isCalendarPicker) || (currentQ && currentQ.isSmartDayQuestion)) {
                 const optionsContainer = document.createElement('div');
                 optionsContainer.className = 'options-container';
                 optionsContainer.dataset.questionId = currentQ.id;
@@ -2558,121 +2564,7 @@
                 }
             }
             
-            // Handle day allocation confirmation
-            if (currentQ && currentQ.isDayAllocationConfirmation) {
-                const dayAllocationSummary = document.createElement('div');
-                dayAllocationSummary.className = 'day-allocation-summary';
-                dayAllocationSummary.style.cssText = `
-                    background: linear-gradient(135deg, rgba(79, 70, 229, 0.1), rgba(217, 119, 6, 0.1));
-                    padding: 20px;
-                    border-radius: 12px;
-                    margin-bottom: 20px;
-                    border-left: 4px solid var(--primary-color);
-                `;
-                
-                const summaryTitle = document.createElement('div');
-                summaryTitle.style.cssText = `
-                    font-size: 1.1rem;
-                    font-weight: 600;
-                    color: var(--primary-color);
-                    margin-bottom: 15px;
-                    display: flex;
-                    align-items: center;
-                    gap: 8px;
-                `;
-                summaryTitle.innerHTML = `📊 Your Day Allocation Summary`;
-                dayAllocationSummary.appendChild(summaryTitle);
-                
-                // Display each destination allocation
-                if (window.dayAllocations) {
-                    Object.entries(window.dayAllocations).forEach(([destination, days]) => {
-                        const allocationItem = document.createElement('div');
-                        allocationItem.style.cssText = `
-                            display: flex;
-                            justify-content: space-between;
-                            align-items: center;
-                            padding: 10px 0;
-                            border-bottom: 1px solid rgba(79, 70, 229, 0.2);
-                        `;
-                        
-                        const destinationName = document.createElement('span');
-                        destinationName.style.cssText = `
-                            font-weight: 500;
-                            color: var(--text-dark);
-                        `;
-                        destinationName.textContent = destination;
-                        
-                        const dayCount = document.createElement('span');
-                        dayCount.style.cssText = `
-                            background: var(--primary-color);
-                            color: white;
-                            padding: 4px 12px;
-                            border-radius: 20px;
-                            font-size: 0.9rem;
-                            font-weight: 500;
-                        `;
-                        dayCount.textContent = `${days} day${days > 1 ? 's' : ''}`;
-                        
-                        allocationItem.appendChild(destinationName);
-                        allocationItem.appendChild(dayCount);
-                        dayAllocationSummary.appendChild(allocationItem);
-                    });
-                }
-                
-                // Total summary
-                const totalSummary = document.createElement('div');
-                totalSummary.style.cssText = `
-                    margin-top: 15px;
-                    padding-top: 15px;
-                    border-top: 2px solid var(--primary-color);
-                    display: flex;
-                    justify-content: space-between;
-                    align-items: center;
-                    font-weight: 600;
-                `;
-                
-                const totalLabel = document.createElement('span');
-                totalLabel.textContent = 'Total Trip Duration:';
-                totalLabel.style.color = 'var(--text-dark)';
-                
-                const totalDays = document.createElement('span');
-                totalDays.style.cssText = `
-                    background: var(--accent-color);
-                    color: white;
-                    padding: 6px 16px;
-                    border-radius: 25px;
-                    font-size: 1rem;
-                `;
-                totalDays.textContent = `${window.totalTripDays} days`;
-                
-                totalSummary.appendChild(totalLabel);
-                totalSummary.appendChild(totalDays);
-                dayAllocationSummary.appendChild(totalSummary);
-                
-                messageDiv.appendChild(dayAllocationSummary);
-                
-                // Add options for confirmation
-                if (options && options.length > 0) {
-                    const optionsContainer = document.createElement('div');
-                    optionsContainer.className = 'options-container';
-                    optionsContainer.dataset.questionId = currentQ.id;
-                    
-                    options.forEach(option => {
-                        const optionButton = document.createElement('button');
-                        optionButton.className = 'option-button';
-                        optionButton.textContent = option;
-                        optionButton.addEventListener('click', () => {
-                            chatInput.value = option;
-                            sendMessage();
-                        });
-                        optionsContainer.appendChild(optionButton);
-                    });
-                    
-                    messageDiv.appendChild(optionsContainer);
-                }
-            }
-            
-            // Handle day allocation confirmation
+            // Handle day allocation confirmation - SINGLE OCCURRENCE ONLY
             if (currentQ && currentQ.isDayAllocationConfirmation) {
                 const dayAllocationSummary = document.createElement('div');
                 dayAllocationSummary.className = 'day-allocation-summary';
@@ -2895,6 +2787,8 @@
             
             chatBody.appendChild(messageDiv);
             scrollToBottom();
+            
+
             
             // Auto-focus the input field after showing a new message
             if (!options || options.length === 0) {
