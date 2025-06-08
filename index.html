@@ -208,6 +208,33 @@
             border-radius: 50%;
             margin-right: 6px;
         }
+        
+        .header-controls {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+        }
+        
+        .test-webhook-btn {
+            background: linear-gradient(135deg, #10b981, #059669);
+            color: white;
+            border: none;
+            padding: 8px 16px;
+            border-radius: 20px;
+            font-size: 0.85rem;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+        
+        .test-webhook-btn:hover {
+            background: linear-gradient(135deg, #059669, #047857);
+            transform: translateY(-1px);
+            box-shadow: 0 4px 12px rgba(16, 185, 129, 0.3);
+        }
 
         .chat-body {
             flex: 1;
@@ -746,9 +773,12 @@
             <div class="chat-container">
                 <div class="chat-header">
                     <div class="chat-title">Travel Planning Agent</div>
-                    <div class="chat-status">
-                        <div class="status-dot"></div>
-                        <span>Online</span>
+                    <div class="header-controls">
+                        <button id="testWebhook" class="test-webhook-btn">🧪 Test Webhook</button>
+                        <div class="chat-status">
+                            <div class="status-dot"></div>
+                            <span>Online</span>
+                        </div>
                     </div>
                 </div>
 
@@ -809,9 +839,12 @@
             <div class="chat-container">
                 <div class="chat-header">
                     <div class="chat-title">Agente de Planificación de Viajes</div>
-                    <div class="chat-status">
-                        <div class="status-dot"></div>
-                        <span>En línea</span>
+                    <div class="header-controls">
+                        <button id="testWebhookES" class="test-webhook-btn">🧪 Probar Webhook</button>
+                        <div class="chat-status">
+                            <div class="status-dot"></div>
+                            <span>En línea</span>
+                        </div>
                     </div>
                 </div>
 
@@ -899,6 +932,12 @@
                 if (e.key === 'Enter') sendMessage();
             });
             
+            // Add test webhook button listener
+            const testWebhookBtn = document.getElementById(lang === 'en' ? 'testWebhook' : 'testWebhookES');
+            if (testWebhookBtn) {
+                testWebhookBtn.addEventListener('click', testWebhookConnection);
+            }
+            
             // Focus the input
             chatInput.focus();
         }
@@ -936,6 +975,50 @@
         // Webhook configuration - points to our travel webhook endpoint
         const webhookUrl = 'https://n8n.srv854905.hstgr.cloud/webhook/travel-chat';
         
+        // Test webhook connection
+        function testWebhookConnection() {
+            const testData = {
+                test: true,
+                message: "Webhook connection test",
+                timestamp: new Date().toISOString()
+            };
+            
+            const testBtn = document.getElementById('testWebhook') || document.getElementById('testWebhookES');
+            const originalText = testBtn.textContent;
+            
+            testBtn.textContent = '🔄 Testing...';
+            testBtn.disabled = true;
+            
+            fetch(webhookUrl, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify(testData)
+            })
+            .then(response => {
+                if (response.ok) {
+                    testBtn.textContent = '✅ Success!';
+                    testBtn.style.background = 'linear-gradient(135deg, #10b981, #059669)';
+                    console.log('✅ Webhook test successful!');
+                } else {
+                    throw new Error(`HTTP ${response.status}`);
+                }
+            })
+            .catch(error => {
+                testBtn.textContent = '❌ Failed';
+                testBtn.style.background = 'linear-gradient(135deg, #ef4444, #dc2626)';
+                console.error('❌ Webhook test failed:', error);
+            })
+            .finally(() => {
+                setTimeout(() => {
+                    testBtn.textContent = originalText;
+                    testBtn.disabled = false;
+                    testBtn.style.background = 'linear-gradient(135deg, #10b981, #059669)';
+                }, 2000);
+            });
+        }
+        
         // Questions for travel planning form in English
         const questionsEN = [
             { 
@@ -963,7 +1046,7 @@
                 multiDestination: true,
                 validation: 'required',
                 nextQuestionBranch: {
-                    'multiDestination': 'destinationDaysAllocation',
+                    'multiDestination': 'startDate',
                     'singleDestination': 'destinationSpecificity'
                 }
             },
@@ -981,21 +1064,6 @@
                 field: 'End Date',
                 isCalendarPicker: true,
                 validation: 'required'
-            },
-            {
-                id: 'destinationDaysAllocation',
-                text: "Perfect! I can see you have {totalDays} days total for your trip. Now let's allocate how many days you'd like to spend in each destination to ensure your timing works perfectly.",
-                field: 'Days Per Destination Setup',
-                isSmartDayAllocation: true,
-                conditional: 'isMultiDestination'
-            },
-            {
-                id: 'dayAllocationConfirmation',
-                text: "Let me confirm your day allocation:",
-                field: 'Day Allocation Confirmation',
-                isDayAllocationConfirmation: true,
-                options: ['Yes, this looks perfect', 'No, I need to adjust the days'],
-                conditional: 'isMultiDestination'
             },
             { 
                 id: 'travelers',
@@ -1505,10 +1573,15 @@
                 formData['Destinations'] = destinations.join(', ');
                 formData['IsMultiDestination'] = window.isMultiDestination;
                 
-                // If multi-destination, we need to generate day allocation questions
-                if (window.isMultiDestination) {
+                // Don't generate day questions yet - wait for end date
+            }
+            
+            // Handle end date and generate day allocation questions AFTER both dates are set
+            if (question.id === 'endDate') {
+                // If multi-destination and we have both dates, now generate day allocation questions
+                if (window.isMultiDestination && formData['Start Date'] && formData['End Date'] && !window.addedDynamicQuestions) {
                     // Generate dynamic questions for each destination
-                    const dayQuestions = generateSmartDayAllocationQuestions(destinations);
+                    const dayQuestions = generateSmartDayAllocationQuestions(window.destinationList);
                     
                     // Insert these questions after the current question
                     const insertIndex = currentQuestion + 1;
