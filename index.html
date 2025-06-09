@@ -1582,12 +1582,29 @@
                     
                     // Check if this is the final question
                     if (nextQ.id === 'final') {
+                        console.log('🎯 REACHED FINAL QUESTION - CREATING SUBMIT BUTTON');
+                        console.log('🎯 Final question text:', nextQ.text);
+                        
                         // Hide the regular input and send button
                         chatInput.style.display = 'none';
                         sendButton.style.display = 'none';
                         
                         // Create and show the submit button
                         createSubmitButton();
+                        
+                        // Don't process this as a regular question - just show the message and button
+                        hideTypingIndicator();
+                        
+                        // Use context-aware text if available, otherwise use default text
+                        let finalText = getContextAwareText(nextQ);
+                        
+                        // Replace any placeholder text with actual user input
+                        for (const field in formData) {
+                            finalText = finalText.replace(`{${field}}`, formData[field]);
+                        }
+                        
+                        addAgentMessage(finalText, null, false);
+                        return; // Exit early - don't process as regular question
                     }
                     
                     // FIXED: Handle prelude messages in sendMessage to prevent duplicate processing
@@ -1677,16 +1694,25 @@
                     hideTypingIndicator();
                     addAgentMessage(nextText, nextQ.options, nextQ.multiselect);
                 } else {
-                    // This shouldn't happen with the new structure, but just in case
-                    hideTypingIndicator();
-                    const finalMessage = questions === questionsEN ? 
-                        "Thank you for completing the survey!" : 
-                        "¡Gracias por completar la encuesta!";
-                    addAgentMessage(finalMessage);
+                    // FIXED: Force show submit button instead of fallback message
+                    console.log('🎯 REACHED END OF QUESTIONS - SHOWING SUBMIT BUTTON');
+                    console.log('🎯 currentQuestion:', currentQuestion, 'questions.length:', questions.length);
                     
-                    // Disable input
-                    chatInput.disabled = true;
-                    sendButton.disabled = true;
+                    hideTypingIndicator();
+                    
+                    // Show the final thank you message
+                    const finalMessage = questions === questionsEN ? 
+                        `Thank you, ${formData['Full Name'] || 'valued customer'}! I'm creating your personalized travel itinerary now. Expect your detailed itinerary in your inbox soon at ${formData['Email'] || 'your email'}! This will include day-by-day plans, local recommendations, and everything you need for an amazing trip. If you have any questions, feel free to contact us!` : 
+                        `¡Gracias, ${formData['Nombre Completo'] || 'estimado cliente'}! Estoy creando tu itinerario de viaje personalizado ahora. ¡Espera tu itinerario detallado en tu bandeja de entrada pronto en ${formData['Correo Electrónico'] || 'tu correo'}! Esto incluirá planes día a día, recomendaciones locales y todo lo que necesitas para un viaje increíble. ¡Si tienes alguna pregunta, no dudes en contactarnos!`;
+                    
+                    addAgentMessage(finalMessage, null, false);
+                    
+                    // Hide the regular input and send button
+                    chatInput.style.display = 'none';
+                    sendButton.style.display = 'none';
+                    
+                    // Create and show the submit button
+                    createSubmitButton();
                 }
             }, 300 + Math.random() * 300); // Reduced typing delay for better UX
         }
@@ -1762,9 +1788,14 @@
                 } else if (response === yesOption) {
                     // Go to final question
                     const finalIndex = questions.findIndex(q => q.id === 'final');
+                    console.log('🎯 CONFIRMATION YES - Going to final question');
+                    console.log('🎯 Final question index:', finalIndex);
+                    console.log('🎯 Final question:', questions[finalIndex]);
                     if (finalIndex !== -1) {
                         currentQuestion = finalIndex;
                         return true; // Signal that we've handled the question advancement
+                    } else {
+                        console.error('❌ Final question not found!');
                     }
                 }
             }
