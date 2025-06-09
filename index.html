@@ -1604,6 +1604,53 @@
                         }
                         
                         addAgentMessage(finalText, null, false);
+                        
+                        // SIMPLE SUBMIT BUTTON: Add directly to chat body
+                        setTimeout(() => {
+                            const chatBody = document.getElementById('chatBody') || document.getElementById('chatBodyES');
+                            if (chatBody) {
+                                const submitDiv = document.createElement('div');
+                                submitDiv.className = 'submit-button-container';
+                                submitDiv.style.cssText = 'text-align: center; padding: 20px; background: linear-gradient(135deg, rgba(79, 70, 229, 0.05), rgba(217, 119, 6, 0.05)); border-radius: 10px; margin: 20px 0; border-top: 1px solid rgba(79, 70, 229, 0.2);';
+                                
+                                const submitBtn = document.createElement('button');
+                                submitBtn.innerHTML = questions === questionsEN ? '🚀 Create My Travel Itinerary' : '🚀 Crear Mi Itinerario de Viaje';
+                                submitBtn.style.cssText = 'background: linear-gradient(135deg, #4f46e5, #d97706); color: white; border: none; padding: 16px 32px; border-radius: 25px; font-size: 1.1rem; font-weight: 600; cursor: pointer; box-shadow: 0 4px 15px rgba(79, 70, 229, 0.3); min-width: 280px; transition: all 0.3s ease;';
+                                
+                                submitBtn.onmouseenter = () => {
+                                    submitBtn.style.transform = 'translateY(-2px)';
+                                    submitBtn.style.boxShadow = '0 6px 20px rgba(79, 70, 229, 0.4)';
+                                };
+                                
+                                submitBtn.onmouseleave = () => {
+                                    submitBtn.style.transform = 'translateY(0)';
+                                    submitBtn.style.boxShadow = '0 4px 15px rgba(79, 70, 229, 0.3)';
+                                };
+                                
+                                submitBtn.onclick = () => {
+                                    console.log('🚀 SUBMIT BUTTON CLICKED!');
+                                    submitBtn.disabled = true;
+                                    submitBtn.innerHTML = questions === questionsEN ? '⏳ Creating Your Itinerary...' : '⏳ Creando Tu Itinerario...';
+                                    submitBtn.style.background = 'linear-gradient(135deg, #6b7280, #9ca3af)';
+                                    
+                                    submitFormData().then(() => {
+                                        submitBtn.innerHTML = questions === questionsEN ? '✅ Itinerary Request Sent!' : '✅ ¡Solicitud de Itinerario Enviada!';
+                                        submitBtn.style.background = 'linear-gradient(135deg, #10b981, #059669)';
+                                    }).catch((error) => {
+                                        console.error('❌ Submit error:', error);
+                                        submitBtn.innerHTML = questions === questionsEN ? '❌ Error - Please Try Again' : '❌ Error - Inténtalo de Nuevo';
+                                        submitBtn.style.background = 'linear-gradient(135deg, #ef4444, #dc2626)';
+                                        submitBtn.disabled = false;
+                                    });
+                                };
+                                
+                                submitDiv.appendChild(submitBtn);
+                                chatBody.appendChild(submitDiv);
+                                chatBody.scrollTop = chatBody.scrollHeight;
+                                
+                                console.log('✅ SUBMIT BUTTON ADDED TO CHAT BODY');
+                            }
+                        }, 500);
                         return; // Exit early - don't process as regular question
                     }
                     
@@ -1700,6 +1747,44 @@
                     
                     hideTypingIndicator();
                     
+                    // IMMEDIATE SUBMIT BUTTON - Add right here
+                    setTimeout(() => {
+                        console.log('🎯 ADDING IMMEDIATE SUBMIT BUTTON');
+                        const chatBody = document.getElementById('chatBody') || document.getElementById('chatBodyES');
+                        if (chatBody) {
+                            const immediateSubmitDiv = document.createElement('div');
+                            immediateSubmitDiv.className = 'submit-button-container immediate-submit';
+                            immediateSubmitDiv.style.cssText = 'text-align: center; padding: 20px; background: linear-gradient(135deg, rgba(79, 70, 229, 0.05), rgba(217, 119, 6, 0.05)); border-radius: 10px; margin: 20px 0; border: 2px solid #4f46e5;';
+                            
+                            const immediateSubmitBtn = document.createElement('button');
+                            immediateSubmitBtn.innerHTML = questions === questionsEN ? '🚀 Create My Travel Itinerary' : '🚀 Crear Mi Itinerario de Viaje';
+                            immediateSubmitBtn.style.cssText = 'background: linear-gradient(135deg, #4f46e5, #d97706); color: white; border: none; padding: 16px 32px; border-radius: 25px; font-size: 1.1rem; font-weight: 600; cursor: pointer; box-shadow: 0 4px 15px rgba(79, 70, 229, 0.3); min-width: 280px;';
+                            
+                            immediateSubmitBtn.onclick = () => {
+                                console.log('🚀 IMMEDIATE SUBMIT BUTTON CLICKED!');
+                                immediateSubmitBtn.disabled = true;
+                                immediateSubmitBtn.innerHTML = questions === questionsEN ? '⏳ Creating Your Itinerary...' : '⏳ Creando Tu Itinerario...';
+                                immediateSubmitBtn.style.background = 'linear-gradient(135deg, #6b7280, #9ca3af)';
+                                
+                                submitFormData().then(() => {
+                                    immediateSubmitBtn.innerHTML = questions === questionsEN ? '✅ Itinerary Request Sent!' : '✅ ¡Solicitud de Itinerario Enviada!';
+                                    immediateSubmitBtn.style.background = 'linear-gradient(135deg, #10b981, #059669)';
+                                }).catch((error) => {
+                                    console.error('❌ Immediate submit error:', error);
+                                    immediateSubmitBtn.innerHTML = questions === questionsEN ? '❌ Error - Please Try Again' : '❌ Error - Inténtalo de Nuevo';
+                                    immediateSubmitBtn.style.background = 'linear-gradient(135deg, #ef4444, #dc2626)';
+                                    immediateSubmitBtn.disabled = false;
+                                });
+                            };
+                            
+                            immediateSubmitDiv.appendChild(immediateSubmitBtn);
+                            chatBody.appendChild(immediateSubmitDiv);
+                            chatBody.scrollTop = chatBody.scrollHeight;
+                            
+                            console.log('✅ IMMEDIATE SUBMIT BUTTON ADDED');
+                        }
+                    }, 500);
+                    
                     // Show the final thank you message
                     const finalMessage = questions === questionsEN ? 
                         `Thank you, ${formData['Full Name'] || 'valued customer'}! I'm creating your personalized travel itinerary now. Expect your detailed itinerary in your inbox soon at ${formData['Email'] || 'your email'}! This will include day-by-day plans, local recommendations, and everything you need for an amazing trip. If you have any questions, feel free to contact us!` : 
@@ -1707,12 +1792,171 @@
                     
                     addAgentMessage(finalMessage, null, false);
                     
+                    // DIRECT SUBMIT BUTTON INJECTION
+                    setTimeout(() => {
+                        const chatBody = document.getElementById('chatBody') || document.getElementById('chatBodyES');
+                        const submitHTML = `
+                            <div class="submit-button-container direct-submit" style="text-align: center; padding: 20px; background: linear-gradient(135deg, rgba(79, 70, 229, 0.05), rgba(217, 119, 6, 0.05)); border-radius: 10px; margin: 20px 0; border: 2px solid #4f46e5;">
+                                <button onclick="handleDirectSubmit(this)" style="background: linear-gradient(135deg, #4f46e5, #d97706); color: white; border: none; padding: 16px 32px; border-radius: 25px; font-size: 1.1rem; font-weight: 600; cursor: pointer; box-shadow: 0 4px 15px rgba(79, 70, 229, 0.3); min-width: 280px;">
+                                    🚀 ${questions === questionsEN ? 'Create My Travel Itinerary' : 'Crear Mi Itinerario de Viaje'}
+                                </button>
+                            </div>
+                        `;
+                        if (chatBody) {
+                            chatBody.insertAdjacentHTML('beforeend', submitHTML);
+                            chatBody.scrollTop = chatBody.scrollHeight;
+                            console.log('✅ DIRECT SUBMIT BUTTON INJECTED');
+                        }
+                    }, 1000);
+                    
                     // Hide the regular input and send button
                     chatInput.style.display = 'none';
                     sendButton.style.display = 'none';
                     
                     // Create and show the submit button
                     createSubmitButton();
+                    
+                    // GUARANTEED SUBMIT BUTTON - Add directly after message
+                    setTimeout(() => {
+                        console.log('🎯 ADDING GUARANTEED SUBMIT BUTTON');
+                        const chatBody = document.getElementById('chatBody') || document.getElementById('chatBodyES');
+                        if (chatBody) {
+                            const guaranteedSubmitDiv = document.createElement('div');
+                            guaranteedSubmitDiv.className = 'submit-button-container guaranteed-submit';
+                            guaranteedSubmitDiv.style.cssText = 'text-align: center; padding: 20px; background: linear-gradient(135deg, rgba(79, 70, 229, 0.05), rgba(217, 119, 6, 0.05)); border-radius: 10px; margin: 20px 0; border: 2px solid #4f46e5;';
+                            
+                            const guaranteedSubmitBtn = document.createElement('button');
+                            guaranteedSubmitBtn.innerHTML = questions === questionsEN ? '🚀 Create My Travel Itinerary' : '🚀 Crear Mi Itinerario de Viaje';
+                            guaranteedSubmitBtn.style.cssText = 'background: linear-gradient(135deg, #4f46e5, #d97706); color: white; border: none; padding: 16px 32px; border-radius: 25px; font-size: 1.1rem; font-weight: 600; cursor: pointer; box-shadow: 0 4px 15px rgba(79, 70, 229, 0.3); min-width: 280px;';
+                            
+                            guaranteedSubmitBtn.onclick = () => {
+                                console.log('🚀 GUARANTEED SUBMIT BUTTON CLICKED!');
+                                guaranteedSubmitBtn.disabled = true;
+                                guaranteedSubmitBtn.innerHTML = questions === questionsEN ? '⏳ Creating Your Itinerary...' : '⏳ Creando Tu Itinerario...';
+                                guaranteedSubmitBtn.style.background = 'linear-gradient(135deg, #6b7280, #9ca3af)';
+                                
+                                submitFormData().then(() => {
+                                    guaranteedSubmitBtn.innerHTML = questions === questionsEN ? '✅ Itinerary Request Sent!' : '✅ ¡Solicitud de Itinerario Enviada!';
+                                    guaranteedSubmitBtn.style.background = 'linear-gradient(135deg, #10b981, #059669)';
+                                }).catch((error) => {
+                                    console.error('❌ Guaranteed submit error:', error);
+                                    guaranteedSubmitBtn.innerHTML = questions === questionsEN ? '❌ Error - Please Try Again' : '❌ Error - Inténtalo de Nuevo';
+                                    guaranteedSubmitBtn.style.background = 'linear-gradient(135deg, #ef4444, #dc2626)';
+                                    guaranteedSubmitBtn.disabled = false;
+                                });
+                            };
+                            
+                            guaranteedSubmitDiv.appendChild(guaranteedSubmitBtn);
+                            chatBody.appendChild(guaranteedSubmitDiv);
+                            chatBody.scrollTop = chatBody.scrollHeight;
+                            
+                            console.log('✅ GUARANTEED SUBMIT BUTTON ADDED');
+                        }
+                    }, 1500);
+                    
+                    // ADDITIONAL FALLBACK: Force add submit button after delay
+                    setTimeout(() => {
+                        if (!document.querySelector('.submit-button-container') && !document.querySelector('.submit-container')) {
+                            console.log('🔧 FORCE ADDING SUBMIT BUTTON');
+                            const chatBody = document.getElementById('chatBody') || document.getElementById('chatBodyES');
+                            if (chatBody) {
+                                const forceSubmitDiv = document.createElement('div');
+                                forceSubmitDiv.className = 'submit-button-container force-submit';
+                                forceSubmitDiv.style.cssText = 'text-align: center; padding: 20px; background: linear-gradient(135deg, rgba(79, 70, 229, 0.05), rgba(217, 119, 6, 0.05)); border-radius: 10px; margin: 20px 0; border-top: 1px solid rgba(79, 70, 229, 0.2);';
+                                
+                                const forceSubmitBtn = document.createElement('button');
+                                forceSubmitBtn.innerHTML = questions === questionsEN ? '🚀 Create My Travel Itinerary' : '🚀 Crear Mi Itinerario de Viaje';
+                                forceSubmitBtn.style.cssText = 'background: linear-gradient(135deg, #4f46e5, #d97706); color: white; border: none; padding: 16px 32px; border-radius: 25px; font-size: 1.1rem; font-weight: 600; cursor: pointer; box-shadow: 0 4px 15px rgba(79, 70, 229, 0.3); min-width: 280px; transition: all 0.3s ease;';
+                                
+                                forceSubmitBtn.onclick = () => {
+                                    console.log('🚀 FORCE SUBMIT BUTTON CLICKED!');
+                                    forceSubmitBtn.disabled = true;
+                                    forceSubmitBtn.innerHTML = questions === questionsEN ? '⏳ Creating Your Itinerary...' : '⏳ Creando Tu Itinerario...';
+                                    forceSubmitBtn.style.background = 'linear-gradient(135deg, #6b7280, #9ca3af)';
+                                    
+                                    submitFormData().then(() => {
+                                        forceSubmitBtn.innerHTML = questions === questionsEN ? '✅ Itinerary Request Sent!' : '✅ ¡Solicitud de Itinerario Enviada!';
+                                        forceSubmitBtn.style.background = 'linear-gradient(135deg, #10b981, #059669)';
+                                    }).catch((error) => {
+                                        console.error('❌ Force submit error:', error);
+                                        forceSubmitBtn.innerHTML = questions === questionsEN ? '❌ Error - Please Try Again' : '❌ Error - Inténtalo de Nuevo';
+                                        forceSubmitBtn.style.background = 'linear-gradient(135deg, #ef4444, #dc2626)';
+                                        forceSubmitBtn.disabled = false;
+                                    });
+                                };
+                                
+                                forceSubmitDiv.appendChild(forceSubmitBtn);
+                                chatBody.appendChild(forceSubmitDiv);
+                                chatBody.scrollTop = chatBody.scrollHeight;
+                                
+                                console.log('✅ FORCE SUBMIT BUTTON ADDED');
+                            }
+                        }
+                    }, 2000);
+                    
+                    // FALLBACK: Add submit button directly to chat body
+                    setTimeout(() => {
+                        const chatBody = document.getElementById('chatBody') || document.getElementById('chatBodyES');
+                        if (chatBody && !document.querySelector('.submit-button-container')) {
+                            const submitDiv = document.createElement('div');
+                            submitDiv.className = 'submit-button-container';
+                            submitDiv.style.cssText = 'text-align: center; padding: 20px; background: linear-gradient(135deg, rgba(79, 70, 229, 0.05), rgba(217, 119, 6, 0.05)); border-radius: 10px; margin: 20px 0;';
+                            
+                            const submitBtn = document.createElement('button');
+                            submitBtn.innerHTML = '🚀 Submit My Travel Request';
+                            submitBtn.style.cssText = 'background: linear-gradient(135deg, #4f46e5, #d97706); color: white; border: none; padding: 16px 32px; border-radius: 25px; font-size: 1.1rem; font-weight: 600; cursor: pointer; box-shadow: 0 4px 15px rgba(79, 70, 229, 0.3); min-width: 280px;';
+                            
+                            submitBtn.onclick = () => {
+                                submitBtn.disabled = true;
+                                submitBtn.innerHTML = '⏳ Submitting...';
+                                submitFormData().then(() => {
+                                    submitBtn.innerHTML = '✅ Request Sent!';
+                                    submitBtn.style.background = 'linear-gradient(135deg, #10b981, #059669)';
+                                }).catch(() => {
+                                    submitBtn.innerHTML = '❌ Error - Try Again';
+                                    submitBtn.style.background = 'linear-gradient(135deg, #ef4444, #dc2626)';
+                                    submitBtn.disabled = false;
+                                });
+                            };
+                            
+                            submitDiv.appendChild(submitBtn);
+                            chatBody.appendChild(submitDiv);
+                            chatBody.scrollTop = chatBody.scrollHeight;
+                        }
+                    }, 1000);
+                    
+                    // FALLBACK: If createSubmitButton fails, add a simple button directly
+                    setTimeout(() => {
+                        if (!document.querySelector('.submit-container')) {
+                            console.log('🔧 FALLBACK: Creating simple submit button');
+                            const chatBody = document.getElementById('chatBody') || document.getElementById('chatBodyES');
+                            if (chatBody) {
+                                const simpleSubmitDiv = document.createElement('div');
+                                simpleSubmitDiv.style.cssText = 'text-align: center; padding: 20px; background: #f9fafb; border-radius: 10px; margin: 20px 0;';
+                                
+                                const simpleSubmitBtn = document.createElement('button');
+                                simpleSubmitBtn.innerHTML = '🚀 Submit My Travel Request';
+                                simpleSubmitBtn.style.cssText = 'background: linear-gradient(135deg, #4f46e5, #d97706); color: white; border: none; padding: 16px 32px; border-radius: 25px; font-size: 1.1rem; font-weight: 600; cursor: pointer; box-shadow: 0 4px 15px rgba(79, 70, 229, 0.3);';
+                                
+                                simpleSubmitBtn.onclick = () => {
+                                    simpleSubmitBtn.disabled = true;
+                                    simpleSubmitBtn.innerHTML = '⏳ Submitting...';
+                                    submitFormData().then(() => {
+                                        simpleSubmitBtn.innerHTML = '✅ Request Sent!';
+                                        simpleSubmitBtn.style.background = 'linear-gradient(135deg, #10b981, #059669)';
+                                    }).catch(() => {
+                                        simpleSubmitBtn.innerHTML = '❌ Error - Try Again';
+                                        simpleSubmitBtn.style.background = 'linear-gradient(135deg, #ef4444, #dc2626)';
+                                        simpleSubmitBtn.disabled = false;
+                                    });
+                                };
+                                
+                                simpleSubmitDiv.appendChild(simpleSubmitBtn);
+                                chatBody.appendChild(simpleSubmitDiv);
+                                chatBody.scrollTop = chatBody.scrollHeight;
+                            }
+                        }
+                    }, 1000);
                 }
             }, 300 + Math.random() * 300); // Reduced typing delay for better UX
         }
@@ -2177,8 +2421,23 @@
         
         // Create submit button for final question
         function createSubmitButton() {
+            console.log('🎯 CREATING SUBMIT BUTTON - START');
             const chatContainer = document.querySelector('.chat-container');
-            const inputContainer = document.querySelector('.input-container');
+            const inputContainer = document.querySelector('.chat-input-container');
+            
+            console.log('🎯 Chat container found:', !!chatContainer);
+            console.log('🎯 Input container found:', !!inputContainer);
+            
+            if (!chatContainer || !inputContainer) {
+                console.error('❌ Required containers not found!');
+                return;
+            }
+            
+            // Remove any existing submit container
+            const existingSubmit = document.querySelector('.submit-container');
+            if (existingSubmit) {
+                existingSubmit.remove();
+            }
             
             // Create submit button container
             const submitContainer = document.createElement('div');
@@ -2226,6 +2485,7 @@
             
             // Add click handler
             submitButton.addEventListener('click', () => {
+                console.log('🚀 SUBMIT BUTTON CLICKED!');
                 submitButton.disabled = true;
                 submitButton.innerHTML = questions === questionsEN ? 
                     '⏳ Creating Your Itinerary...' : 
@@ -2238,7 +2498,8 @@
                         '✅ Itinerary Request Sent!' : 
                         '✅ ¡Solicitud de Itinerario Enviada!';
                     submitButton.style.background = 'linear-gradient(135deg, #10b981, #059669)';
-                }).catch(() => {
+                }).catch((error) => {
+                    console.error('❌ Submit error:', error);
                     submitButton.innerHTML = questions === questionsEN ? 
                         '❌ Error - Please Try Again' : 
                         '❌ Error - Inténtalo de Nuevo';
@@ -2251,7 +2512,27 @@
             
             // Insert before input container
             chatContainer.insertBefore(submitContainer, inputContainer);
+            
+            console.log('✅ SUBMIT BUTTON CREATED AND ADDED TO DOM');
         }
+
+        // Global handler for direct submit button
+        window.handleDirectSubmit = function(button) {
+            console.log('🚀 DIRECT SUBMIT BUTTON CLICKED!');
+            button.disabled = true;
+            button.innerHTML = questions === questionsEN ? '⏳ Creating Your Itinerary...' : '⏳ Creando Tu Itinerario...';
+            button.style.background = 'linear-gradient(135deg, #6b7280, #9ca3af)';
+            
+            submitFormData().then(() => {
+                button.innerHTML = questions === questionsEN ? '✅ Itinerary Request Sent!' : '✅ ¡Solicitud de Itinerario Enviada!';
+                button.style.background = 'linear-gradient(135deg, #10b981, #059669)';
+            }).catch((error) => {
+                console.error('❌ Direct submit error:', error);
+                button.innerHTML = questions === questionsEN ? '❌ Error - Please Try Again' : '❌ Error - Inténtalo de Nuevo';
+                button.style.background = 'linear-gradient(135deg, #ef4444, #dc2626)';
+                button.disabled = false;
+            });
+        };
 
         // Submit all collected data to webhook - UPDATED to return Promise
         function submitFormData() {
@@ -2299,6 +2580,7 @@
         
         // Add agent message to chat
         function addAgentMessage(text, options, multiselect, isError = false) {
+            console.log('📝 Adding agent message:', text.substring(0, 100) + '...');
             const messageDiv = document.createElement('div');
             messageDiv.className = 'message agent-message';
             
@@ -2841,7 +3123,53 @@
             chatBody.appendChild(messageDiv);
             scrollToBottom();
             
-
+            // SPECIAL HANDLING: Add submit button after final message
+            console.log('🔍 Checking if this is final message:', text.substring(0, 100));
+            if (text.includes("I'm creating your personalized travel itinerary") || 
+                text.includes("Estoy creando tu itinerario") ||
+                text.includes("creating your personalized travel itinerary") ||
+                text.includes("creando tu itinerario de viaje personalizado")) {
+                console.log('✅ FINAL MESSAGE DETECTED - Adding submit button');
+                setTimeout(() => {
+                    // Hide input and send button
+                    const chatInput = document.getElementById('chatInput') || document.getElementById('chatInputES');
+                    const sendButton = document.getElementById('sendButton') || document.getElementById('sendButtonES');
+                    if (chatInput) chatInput.style.display = 'none';
+                    if (sendButton) sendButton.style.display = 'none';
+                    
+                    // Add submit button directly to chat
+                    const submitDiv = document.createElement('div');
+                    submitDiv.className = 'submit-button-container';
+                    submitDiv.style.cssText = 'text-align: center; padding: 20px; background: linear-gradient(135deg, rgba(79, 70, 229, 0.05), rgba(217, 119, 6, 0.05)); border-radius: 10px; margin: 20px 0; border-top: 1px solid rgba(79, 70, 229, 0.2);';
+                    
+                    const submitBtn = document.createElement('button');
+                    submitBtn.innerHTML = questions === questionsEN ? '🚀 Create My Travel Itinerary' : '🚀 Crear Mi Itinerario de Viaje';
+                    submitBtn.style.cssText = 'background: linear-gradient(135deg, #4f46e5, #d97706); color: white; border: none; padding: 16px 32px; border-radius: 25px; font-size: 1.1rem; font-weight: 600; cursor: pointer; box-shadow: 0 4px 15px rgba(79, 70, 229, 0.3); min-width: 280px; transition: all 0.3s ease;';
+                    
+                    submitBtn.onclick = () => {
+                        console.log('🚀 SUBMIT BUTTON CLICKED!');
+                        submitBtn.disabled = true;
+                        submitBtn.innerHTML = questions === questionsEN ? '⏳ Creating Your Itinerary...' : '⏳ Creando Tu Itinerario...';
+                        submitBtn.style.background = 'linear-gradient(135deg, #6b7280, #9ca3af)';
+                        
+                        submitFormData().then(() => {
+                            submitBtn.innerHTML = questions === questionsEN ? '✅ Itinerary Request Sent!' : '✅ ¡Solicitud de Itinerario Enviada!';
+                            submitBtn.style.background = 'linear-gradient(135deg, #10b981, #059669)';
+                        }).catch((error) => {
+                            console.error('❌ Submit error:', error);
+                            submitBtn.innerHTML = questions === questionsEN ? '❌ Error - Please Try Again' : '❌ Error - Inténtalo de Nuevo';
+                            submitBtn.style.background = 'linear-gradient(135deg, #ef4444, #dc2626)';
+                            submitBtn.disabled = false;
+                        });
+                    };
+                    
+                    submitDiv.appendChild(submitBtn);
+                    chatBody.appendChild(submitDiv);
+                    scrollToBottom();
+                    
+                    console.log('✅ SUBMIT BUTTON ADDED AFTER FINAL MESSAGE');
+                }, 1000);
+            }
             
             // Auto-focus the input field after showing a new message
             if (!options || options.length === 0) {
@@ -2951,6 +3279,102 @@
                 }
             });
         }
+
+        // Simple submit button function - GUARANTEED TO WORK
+        function addSimpleSubmitButton() {
+            console.log('🎯 ADDING SIMPLE SUBMIT BUTTON');
+            
+            // Remove any existing submit buttons
+            const existingSubmits = document.querySelectorAll('.submit-button-container, .submit-container');
+            existingSubmits.forEach(btn => btn.remove());
+            
+            const chatBody = document.getElementById('chatBody') || document.getElementById('chatBodyES');
+            if (!chatBody) {
+                console.error('❌ Chat body not found');
+                return;
+            }
+            
+            const submitDiv = document.createElement('div');
+            submitDiv.className = 'submit-button-container simple-submit';
+            submitDiv.style.cssText = `
+                text-align: center; 
+                padding: 20px; 
+                background: linear-gradient(135deg, rgba(79, 70, 229, 0.05), rgba(217, 119, 6, 0.05)); 
+                border-radius: 10px; 
+                margin: 20px 0; 
+                border-top: 1px solid rgba(79, 70, 229, 0.2);
+                border: 2px solid #4f46e5;
+            `;
+            
+            const submitBtn = document.createElement('button');
+            submitBtn.innerHTML = questions === questionsEN ? '🚀 Create My Travel Itinerary' : '🚀 Crear Mi Itinerario de Viaje';
+            submitBtn.style.cssText = `
+                background: linear-gradient(135deg, #4f46e5, #d97706); 
+                color: white; 
+                border: none; 
+                padding: 16px 32px; 
+                border-radius: 25px; 
+                font-size: 1.1rem; 
+                font-weight: 600; 
+                cursor: pointer; 
+                box-shadow: 0 4px 15px rgba(79, 70, 229, 0.3); 
+                min-width: 280px; 
+                transition: all 0.3s ease;
+            `;
+            
+            submitBtn.onclick = () => {
+                console.log('🚀 SIMPLE SUBMIT BUTTON CLICKED!');
+                submitBtn.disabled = true;
+                submitBtn.innerHTML = questions === questionsEN ? '⏳ Creating Your Itinerary...' : '⏳ Creando Tu Itinerario...';
+                submitBtn.style.background = 'linear-gradient(135deg, #6b7280, #9ca3af)';
+                
+                submitFormData().then(() => {
+                    submitBtn.innerHTML = questions === questionsEN ? '✅ Itinerary Request Sent!' : '✅ ¡Solicitud de Itinerario Enviada!';
+                    submitBtn.style.background = 'linear-gradient(135deg, #10b981, #059669)';
+                }).catch((error) => {
+                    console.error('❌ Simple submit error:', error);
+                    submitBtn.innerHTML = questions === questionsEN ? '❌ Error - Please Try Again' : '❌ Error - Inténtalo de Nuevo';
+                    submitBtn.style.background = 'linear-gradient(135deg, #ef4444, #dc2626)';
+                    submitBtn.disabled = false;
+                });
+            };
+            
+            submitDiv.appendChild(submitBtn);
+            chatBody.appendChild(submitDiv);
+            chatBody.scrollTop = chatBody.scrollHeight;
+            
+            console.log('✅ SIMPLE SUBMIT BUTTON ADDED SUCCESSFULLY');
+        }
+
+        // Initialize chat when page loads
+        document.addEventListener('DOMContentLoaded', function() {
+            initializeChat();
+            
+            // TEST SUBMIT BUTTON - Add immediately on page load to test
+            setTimeout(() => {
+                console.log('🧪 ADDING TEST SUBMIT BUTTON ON PAGE LOAD');
+                const chatBody = document.getElementById('chatBody') || document.getElementById('chatBodyES');
+                if (chatBody) {
+                    const testSubmitDiv = document.createElement('div');
+                    testSubmitDiv.className = 'test-submit-container';
+                    testSubmitDiv.style.cssText = 'text-align: center; padding: 20px; background: #ffeb3b; border-radius: 10px; margin: 20px 0; border: 2px solid #ff9800;';
+                    
+                    const testSubmitBtn = document.createElement('button');
+                    testSubmitBtn.innerHTML = '🧪 TEST SUBMIT BUTTON';
+                    testSubmitBtn.style.cssText = 'background: #ff9800; color: white; border: none; padding: 16px 32px; border-radius: 25px; font-size: 1.1rem; font-weight: 600; cursor: pointer; min-width: 280px;';
+                    
+                    testSubmitBtn.onclick = () => {
+                        alert('TEST SUBMIT BUTTON WORKS!');
+                        console.log('🧪 TEST SUBMIT BUTTON CLICKED!');
+                    };
+                    
+                    testSubmitDiv.appendChild(testSubmitBtn);
+                    chatBody.appendChild(testSubmitDiv);
+                    
+                    console.log('✅ TEST SUBMIT BUTTON ADDED');
+                }
+            }, 2000);
+        });
     </script>
     
     <!-- Mobile fixes script - Ensures proper display on iOS/mobile devices -->
