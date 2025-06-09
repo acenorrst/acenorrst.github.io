@@ -190,7 +190,7 @@
         .header-controls {
             display: flex;
             align-items: center;
-            gap: 12px;
+            gap: 15px;
         }
 
         .test-webhook-btn {
@@ -229,7 +229,7 @@
         .status-dot {
             width: 8px;
             height: 8px;
-            background-color: var(--secondary-color);
+            background-color: #10b981; /* Changed to green for universal "online" color */
             border-radius: 50%;
             margin-right: 6px;
         }
@@ -240,26 +240,7 @@
             gap: 15px;
         }
         
-        .test-webhook-btn {
-            background: linear-gradient(135deg, #10b981, #059669);
-            color: white;
-            border: none;
-            padding: 8px 16px;
-            border-radius: 20px;
-            font-size: 0.85rem;
-            font-weight: 500;
-            cursor: pointer;
-            transition: all 0.2s ease;
-            display: flex;
-            align-items: center;
-            gap: 6px;
-        }
-        
-        .test-webhook-btn:hover {
-            background: linear-gradient(135deg, #059669, #047857);
-            transform: translateY(-1px);
-            box-shadow: 0 4px 12px rgba(16, 185, 129, 0.3);
-        }
+
 
         .chat-body {
             flex: 1;
@@ -983,6 +964,22 @@
             formData = {};
             currentQuestion = 0;
             
+            // CLEANUP: Remove any test webhook buttons and fix status dot color
+            setTimeout(() => {
+                // Remove test webhook buttons
+                const testWebhookBtns = document.querySelectorAll('.test-webhook-btn, #testWebhook, #testWebhookES, [id*="testWebhook"]');
+                testWebhookBtns.forEach(btn => {
+                    console.log('Removing test webhook button:', btn);
+                    btn.remove();
+                });
+                
+                // Change status dots to green (universal online color)
+                const statusDots = document.querySelectorAll('.status-dot');
+                statusDots.forEach(dot => {
+                    dot.style.backgroundColor = '#10b981';
+                });
+            }, 100);
+            
             // Set elements and questions based on language
             if (lang === 'en') {
                 chatBody = document.getElementById('chatBody');
@@ -1007,7 +1004,14 @@
                 if (e.key === 'Enter') sendMessage();
             });
             
-            // Test webhook functionality removed - using submit button instead
+            // CLEANUP: Remove test webhook buttons and fix status dot color
+            setTimeout(() => {
+                const testWebhookBtns = document.querySelectorAll('.test-webhook-btn, #testWebhook, #testWebhookES');
+                testWebhookBtns.forEach(btn => btn.remove());
+                
+                const statusDots = document.querySelectorAll('.status-dot');
+                statusDots.forEach(dot => dot.style.backgroundColor = '#10b981');
+            }, 100);
             
             // Focus the input
             chatInput.focus();
@@ -2946,6 +2950,29 @@
         });
     </script>
     
+    <!-- Force cleanup script to remove test webhook buttons and fix status dot color -->
+    <script>
+        // Force cleanup on page load to handle any cached elements
+        document.addEventListener('DOMContentLoaded', function() {
+            setTimeout(() => {
+                // Remove any test webhook buttons
+                const testWebhookBtns = document.querySelectorAll('.test-webhook-btn, #testWebhook, #testWebhookES, [class*="test-webhook"], [id*="testWebhook"]');
+                testWebhookBtns.forEach(btn => {
+                    console.log('🧹 Removing cached test webhook button:', btn);
+                    btn.remove();
+                });
+                
+                // Change all status dots to green (universal online color)
+                const statusDots = document.querySelectorAll('.status-dot');
+                statusDots.forEach(dot => {
+                    dot.style.backgroundColor = '#10b981';
+                    dot.style.setProperty('background-color', '#10b981', 'important');
+                });
+                
+                console.log('✅ Page cleanup completed - test buttons removed, status dots changed to green');
+            }, 50);
+        });
+    </script>
 
 </body>
 </html> 
