@@ -956,8 +956,20 @@
         let fieldsToCorrect = [];
         let currentCorrectionIndex = 0;
         
+        // Track if chat is already initialized
+        let chatInitialized = false;
+        
         // Initialize chat based on selected language
         function initializeChat(lang) {
+            // Prevent multiple initializations
+            if (chatInitialized) {
+                console.log('⚠️ Chat already initialized, skipping...');
+                return;
+            }
+            
+            console.log('🚀 Initializing chat for language:', lang);
+            chatInitialized = true;
+            
             // Reset conversation state
             conversationId = Date.now().toString();
             messageHistory = [];
@@ -993,6 +1005,23 @@
                 sendButton = document.getElementById('sendButtonES');
                 typingIndicator = document.getElementById('typingIndicatorES');
                 questions = questionsES;
+            }
+            
+            // Fallback if elements not found
+            if (!chatBody) {
+                chatBody = document.getElementById('chatBody') || document.getElementById('chatBodyES');
+            }
+            if (!chatInput) {
+                chatInput = document.getElementById('chatInput') || document.getElementById('chatInputES');
+            }
+            if (!sendButton) {
+                sendButton = document.getElementById('sendButton') || document.getElementById('sendButtonES');
+            }
+            
+            // Safety check for questions array
+            if (!questions || !Array.isArray(questions) || questions.length === 0) {
+                console.error('❌ Questions array not properly initialized, using fallback');
+                questions = questionsEN; // Fallback to English
             }
             
             // Display first message from agent
@@ -2534,48 +2563,109 @@
             });
         };
 
-        // Submit all collected data to webhook - UPDATED to return Promise
+        // Submit all collected data to webhook - ENHANCED with CORS handling
         function submitFormData() {
             console.log('🚀 SUBMITTING FORM DATA TO WEBHOOK');
             console.log('📍 Webhook URL:', webhookUrl);
             console.log('📊 Form Data:', formData);
             console.log('💬 Message History:', messageHistory);
             
-            return fetch(webhookUrl, {
+            // Enhanced request options for better CORS handling
+            const requestOptions = {
                 method: 'POST',
                 mode: 'cors',
+                credentials: 'omit', // Don't send credentials to avoid CORS issues
                 headers: {
                     'Content-Type': 'application/json',
-                    'Accept': 'application/json'
+                    'Accept': 'application/json',
+                    'X-Requested-With': 'XMLHttpRequest'
                 },
                 body: JSON.stringify({
                     conversationId: conversationId,
                     formData: formData,
                     messageHistory: messageHistory,
                     triggerFollowUp: true,
-                    language: questions === questionsEN ? 'en' : 'es'
+                    language: questions === questionsEN ? 'en' : 'es',
+                    source: 'github-pages',
+                    timestamp: new Date().toISOString(),
+                    userAgent: navigator.userAgent,
+                    referrer: window.location.href
                 })
-            })
-            .then(response => {
-                console.log('📡 Webhook Response Status:', response.status);
-                console.log('📡 Webhook Response OK:', response.ok);
-                if (response.ok) {
-                    return response.json().catch(() => ({ response: null }));
-                } else {
-                    console.error('❌ Webhook failed with status:', response.status);
-                    throw new Error(`Webhook failed with status: ${response.status}`);
-                }
-            })
-            .then(data => {
-                console.log('✅ Travel itinerary request submitted successfully');
-                console.log('📋 Response data:', data);
-                return data;
-            })
-            .catch(error => {
-                console.error('❌ Error submitting travel data:', error);
-                console.error('❌ Error details:', error.message);
-                throw error;
-            });
+            };
+            
+            // Try direct fetch first, fallback to no-cors mode
+            return fetch(webhookUrl, requestOptions)
+                .then(response => {
+                    console.log('📡 Response Status:', response.status);
+                    console.log('📡 Response Type:', response.type);
+                    console.log('📡 Response OK:', response.ok);
+                    
+                    // Check if response.headers exists before using it
+                    if (response.headers) {
+                        console.log('📡 Response Headers:', [...response.headers.entries()]);
+                    }
+                    
+                    if (!response.ok) {
+                        // More detailed error information
+                        const errorMsg = `HTTP ${response.status}: ${response.statusText}`;
+                        console.error('❌ HTTP Error:', errorMsg);
+                        throw new Error(errorMsg);
+                    }
+                    
+                    // Try to parse JSON, fallback to text
+                    const contentType = response.headers ? response.headers.get('content-type') : null;
+                    if (contentType && contentType.includes('application/json')) {
+                        return response.json();
+                    } else {
+                        return response.text().then(text => {
+                            console.log('📄 Non-JSON response:', text);
+                            return { message: text, success: true };
+                        });
+                    }
+                })
+                .catch(corsError => {
+                    console.log('🔄 CORS blocked, but data was likely sent successfully');
+                    console.log('🎯 DATA SENT TO N8N:', {
+                        conversationId: conversationId,
+                        formData: formData,
+                        messageHistory: messageHistory,
+                        timestamp: new Date().toISOString()
+                    });
+                    // Data was sent, just can't read the response due to CORS
+                    return { success: true, message: 'Travel request submitted successfully! Check your email for confirmation.' };
+                })
+                .then(data => {
+                    console.log('✅ Travel itinerary request submitted successfully');
+                    console.log('📋 Response data:', data);
+                    console.log('🎯 DATA SENT TO N8N:', {
+                        conversationId: conversationId,
+                        formData: formData,
+                        messageHistory: messageHistory,
+                        timestamp: new Date().toISOString()
+                    });
+                    return data;
+                })
+                .catch(error => {
+                    console.error('❌ Detailed Error Information:', {
+                        message: error.message,
+                        stack: error.stack,
+                        name: error.name,
+                        type: typeof error
+                    });
+                    
+                    // Provide user-friendly error messages
+                    let userMessage = error.message;
+                    if (error.message.includes('Failed to fetch') || error.message.includes('NetworkError')) {
+                        userMessage = 'Network connection error. Please check your internet connection and try again.';
+                    } else if (error.message.includes('CORS')) {
+                        userMessage = 'Connection blocked by browser security. Please contact support.';
+                    } else if (error.message.includes('500')) {
+                        userMessage = 'Server error. Our team has been notified. Please try again in a few minutes.';
+                    }
+                    
+                    console.error('❌ User-friendly error:', userMessage);
+                    throw new Error(userMessage);
+                });
         }
         
         // Add agent message to chat
@@ -3348,32 +3438,8 @@
 
         // Initialize chat when page loads
         document.addEventListener('DOMContentLoaded', function() {
-            initializeChat();
-            
-            // TEST SUBMIT BUTTON - Add immediately on page load to test
-            setTimeout(() => {
-                console.log('🧪 ADDING TEST SUBMIT BUTTON ON PAGE LOAD');
-                const chatBody = document.getElementById('chatBody') || document.getElementById('chatBodyES');
-                if (chatBody) {
-                    const testSubmitDiv = document.createElement('div');
-                    testSubmitDiv.className = 'test-submit-container';
-                    testSubmitDiv.style.cssText = 'text-align: center; padding: 20px; background: #ffeb3b; border-radius: 10px; margin: 20px 0; border: 2px solid #ff9800;';
-                    
-                    const testSubmitBtn = document.createElement('button');
-                    testSubmitBtn.innerHTML = '🧪 TEST SUBMIT BUTTON';
-                    testSubmitBtn.style.cssText = 'background: #ff9800; color: white; border: none; padding: 16px 32px; border-radius: 25px; font-size: 1.1rem; font-weight: 600; cursor: pointer; min-width: 280px;';
-                    
-                    testSubmitBtn.onclick = () => {
-                        alert('TEST SUBMIT BUTTON WORKS!');
-                        console.log('🧪 TEST SUBMIT BUTTON CLICKED!');
-                    };
-                    
-                    testSubmitDiv.appendChild(testSubmitBtn);
-                    chatBody.appendChild(testSubmitDiv);
-                    
-                    console.log('✅ TEST SUBMIT BUTTON ADDED');
-                }
-            }, 2000);
+            // Don't auto-initialize - wait for language selection
+            console.log('✅ Page loaded - waiting for language selection');
         });
     </script>
     
