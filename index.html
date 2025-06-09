@@ -850,7 +850,6 @@
                 <div class="chat-header">
                     <div class="chat-title">Travel Planning Agent</div>
                     <div class="header-controls">
-                        <button id="testWebhook" class="test-webhook-btn">🧪 Test Webhook</button>
                         <div class="chat-status">
                             <div class="status-dot"></div>
                             <span>Online</span>
@@ -916,7 +915,7 @@
                 <div class="chat-header">
                     <div class="chat-title">Agente de Planificación de Viajes</div>
                     <div class="header-controls">
-                        <button id="testWebhookES" class="test-webhook-btn">🧪 Probar Webhook</button>
+
                         <div class="chat-status">
                             <div class="status-dot"></div>
                             <span>En línea</span>
@@ -1008,11 +1007,7 @@
                 if (e.key === 'Enter') sendMessage();
             });
             
-            // Add test webhook button listener
-            const testWebhookBtn = document.getElementById(lang === 'en' ? 'testWebhook' : 'testWebhookES');
-            if (testWebhookBtn) {
-                testWebhookBtn.addEventListener('click', testWebhookConnection);
-            }
+            // Test webhook functionality removed - using submit button instead
             
             // Focus the input
             chatInput.focus();
@@ -1051,49 +1046,7 @@
         // Webhook configuration - points to our travel webhook endpoint
         const webhookUrl = 'https://n8n.srv854905.hstgr.cloud/webhook/travel-chat';
         
-        // Test webhook connection
-        function testWebhookConnection() {
-            const testData = {
-                test: true,
-                message: "Webhook connection test",
-                timestamp: new Date().toISOString()
-            };
-            
-            const testBtn = document.getElementById('testWebhook') || document.getElementById('testWebhookES');
-            const originalText = testBtn.textContent;
-            
-            testBtn.textContent = '🔄 Testing...';
-            testBtn.disabled = true;
-            
-            fetch(webhookUrl, {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                },
-                body: JSON.stringify(testData)
-            })
-            .then(response => {
-                if (response.ok) {
-                    testBtn.textContent = '✅ Success!';
-                    testBtn.style.background = 'linear-gradient(135deg, #10b981, #059669)';
-                    console.log('✅ Webhook test successful!');
-                } else {
-                    throw new Error(`HTTP ${response.status}`);
-                }
-            })
-            .catch(error => {
-                testBtn.textContent = '❌ Failed';
-                testBtn.style.background = 'linear-gradient(135deg, #ef4444, #dc2626)';
-                console.error('❌ Webhook test failed:', error);
-            })
-            .finally(() => {
-                setTimeout(() => {
-                    testBtn.textContent = originalText;
-                    testBtn.disabled = false;
-                    testBtn.style.background = 'linear-gradient(135deg, #10b981, #059669)';
-                }, 2000);
-            });
-        }
+        // Test webhook functionality removed - using submit button at end of form instead
         
         // Questions for travel planning form in English
         const questionsEN = [
@@ -1625,20 +1578,12 @@
                     
                     // Check if this is the final question
                     if (nextQ.id === 'final') {
-                        // Disable chat input and button for final message
-                        chatInput.disabled = true;
-                        sendButton.disabled = true;
-                        chatInput.placeholder = questions === questionsEN ? 
-                            "Survey completed. Thank you!" : 
-                            "Encuesta completada. ¡Gracias!";
+                        // Hide the regular input and send button
+                        chatInput.style.display = 'none';
+                        sendButton.style.display = 'none';
                         
-                        // 🔍 DEBUG: Webhook call logging
-                        console.log('🎯 REACHED FINAL QUESTION - CALLING WEBHOOK!');
-                        console.log('📊 Form Data:', formData);
-                        console.log('🔗 Webhook URL:', webhookUrl);
-                        
-                        // Submit data to webhook
-                        submitFormData();
+                        // Create and show the submit button
+                        createSubmitButton();
                     }
                     
                     // FIXED: Handle prelude messages in sendMessage to prevent duplicate processing
@@ -2195,15 +2140,92 @@
                 (spanishPrompts[fieldName] || `Por favor, corrija su ${fieldName}:`);
         }
         
-        // Submit all collected data to webhook
+        // Create submit button for final question
+        function createSubmitButton() {
+            const chatContainer = document.querySelector('.chat-container');
+            const inputContainer = document.querySelector('.input-container');
+            
+            // Create submit button container
+            const submitContainer = document.createElement('div');
+            submitContainer.className = 'submit-container';
+            submitContainer.style.cssText = `
+                padding: 20px;
+                text-align: center;
+                background: linear-gradient(135deg, rgba(79, 70, 229, 0.05), rgba(217, 119, 6, 0.05));
+                border-top: 1px solid rgba(79, 70, 229, 0.2);
+            `;
+            
+            // Create submit button
+            const submitButton = document.createElement('button');
+            submitButton.className = 'submit-itinerary-btn';
+            submitButton.innerHTML = questions === questionsEN ? 
+                '🚀 Create My Travel Itinerary' : 
+                '🚀 Crear Mi Itinerario de Viaje';
+            
+            submitButton.style.cssText = `
+                background: linear-gradient(135deg, var(--primary-color), var(--accent-color));
+                color: white;
+                border: none;
+                padding: 16px 32px;
+                border-radius: 25px;
+                font-size: 1.1rem;
+                font-weight: 600;
+                cursor: pointer;
+                transition: all 0.3s ease;
+                box-shadow: 0 4px 15px rgba(79, 70, 229, 0.3);
+                min-width: 280px;
+                position: relative;
+                overflow: hidden;
+            `;
+            
+            // Add hover effects
+            submitButton.addEventListener('mouseenter', () => {
+                submitButton.style.transform = 'translateY(-2px)';
+                submitButton.style.boxShadow = '0 6px 20px rgba(79, 70, 229, 0.4)';
+            });
+            
+            submitButton.addEventListener('mouseleave', () => {
+                submitButton.style.transform = 'translateY(0)';
+                submitButton.style.boxShadow = '0 4px 15px rgba(79, 70, 229, 0.3)';
+            });
+            
+            // Add click handler
+            submitButton.addEventListener('click', () => {
+                submitButton.disabled = true;
+                submitButton.innerHTML = questions === questionsEN ? 
+                    '⏳ Creating Your Itinerary...' : 
+                    '⏳ Creando Tu Itinerario...';
+                submitButton.style.background = 'linear-gradient(135deg, #6b7280, #9ca3af)';
+                
+                // Submit the form data
+                submitFormData().then(() => {
+                    submitButton.innerHTML = questions === questionsEN ? 
+                        '✅ Itinerary Request Sent!' : 
+                        '✅ ¡Solicitud de Itinerario Enviada!';
+                    submitButton.style.background = 'linear-gradient(135deg, #10b981, #059669)';
+                }).catch(() => {
+                    submitButton.innerHTML = questions === questionsEN ? 
+                        '❌ Error - Please Try Again' : 
+                        '❌ Error - Inténtalo de Nuevo';
+                    submitButton.style.background = 'linear-gradient(135deg, #ef4444, #dc2626)';
+                    submitButton.disabled = false;
+                });
+            });
+            
+            submitContainer.appendChild(submitButton);
+            
+            // Insert before input container
+            chatContainer.insertBefore(submitContainer, inputContainer);
+        }
+
+        // Submit all collected data to webhook - UPDATED to return Promise
         function submitFormData() {
-            // Note: Input is already disabled when final question is reached
             console.log('🚀 SUBMITTING FORM DATA TO WEBHOOK');
             console.log('📍 Webhook URL:', webhookUrl);
             console.log('📊 Form Data:', formData);
             console.log('💬 Message History:', messageHistory);
             
-            fetch(webhookUrl, {
+            return fetch(webhookUrl, {
                 method: 'POST',
                 mode: 'cors',
                 headers: {
@@ -2225,22 +2247,18 @@
                     return response.json().catch(() => ({ response: null }));
                 } else {
                     console.error('❌ Webhook failed with status:', response.status);
-                    return response.text().then(text => {
-                        console.error('❌ Error response:', text);
-                        return { response: null, error: text };
-                    });
+                    throw new Error(`Webhook failed with status: ${response.status}`);
                 }
             })
             .then(data => {
-                // Data submitted successfully - no need to show additional messages
-                // since the final message is already displayed
                 console.log('✅ Travel itinerary request submitted successfully');
                 console.log('📋 Response data:', data);
+                return data;
             })
             .catch(error => {
                 console.error('❌ Error submitting travel data:', error);
                 console.error('❌ Error details:', error.message);
-                // Even if webhook fails, the user already sees the final message
+                throw error;
             });
         }
         
